@@ -304,5 +304,7 @@ class JointsDataset(Dataset):
 
         # import matplotlib.pyplot as plt
         # plt.matshow(target[4])
+
 if __name__ == '__main__':
     JointsDataset
+    print("fuck you")
