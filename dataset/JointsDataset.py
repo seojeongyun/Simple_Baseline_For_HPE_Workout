@@ -57,7 +57,7 @@ class JointsDataset(Dataset):
         self.transform = transform
         self.json_files = self.get_json_files()
         # self.make_db = self.make_db()
-        self.db = self.get_db()
+        self.key, self.db = self.get_db()
 
     def get_json_files(self):
         label_path = []
@@ -120,9 +120,14 @@ class JointsDataset(Dataset):
 
         return data_dict
     def get_db(self):
-        with open(self.cfg.DATASET.ROOT, 'r') as f:
+        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json', 'r') as f:
             db = json.load(f)
-        return db
+
+        dict_key_list = []
+        for _, key in enumerate(tqdm(db.keys(), desc="get key of dict from db")):
+            dict_key_list.append(key)
+
+        return dict_key_list, db
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError
@@ -133,9 +138,7 @@ class JointsDataset(Dataset):
     def __getitem__(self, idx):
         # db_rec = copy.deepcopy(self.db[idx])
         # db_rec.keys() = ['image', 'center', 'scale', 'joints_3d', 'joints_3d_vis', 'filename', 'imgnum']
-        image_file = self.data['img_path']
-        filename = db_rec['filename'] if 'filename' in db_rec else ''
-        imgnum = db_rec['imgnum'] if 'imgnum' in db_rec else ''
+        image_file = self.key[idx]
 
         if self.data_format == 'zip':
             from utils import zipreader
@@ -149,47 +152,47 @@ class JointsDataset(Dataset):
             logger.error('=> fail to read {}'.format(image_file))
             raise ValueError('Fail to read {}'.format(image_file))
 
-        joints = db_rec['joints_3d']
-        joints_vis = db_rec['joints_3d_vis']
+        joints = self.db[image_file]['joints']
+        joints_vis = self.db[image_file]['joints_vis']
 
-        c = db_rec['center']
-        s = db_rec['scale']
-        score = db_rec['score'] if 'score' in db_rec else 1
-        r = 0 # what is r ? rotate ?
+        # c = db_rec['center']
+        # s = db_rec['scale']
+        # score = db_rec['score'] if 'score' in db_rec else 1
+        # r = 0 # what is r ? rotate ?
 
-        if self.is_train:
-            sf = self.scale_factor
-            rf = self.rotation_factor
-            s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
-            # np.random.randn() -> gaussian distribution, mean = 0, standard deviation = 1
-            # s * np.clip( 0 ~ 2, 0.75, 1.25 )
-            # min = 0.75 ~ max = 1.25
-            r = np.clip(np.random.randn()*rf, -rf*2, rf*2) if random.random() <= 0.6 else 0
-            # min = -60 ~ max = 60
+        # if self.is_train:
+        #     sf = self.scale_factor
+        #     rf = self.rotation_factor
+        #     s = s * np.clip(np.random.randn()*sf + 1, 1 - sf, 1 + sf)
+        #     # np.random.randn() -> gaussian distribution, mean = 0, standard deviation = 1
+        #     # s * np.clip( 0 ~ 2, 0.75, 1.25 )
+        #     # min = 0.75 ~ max = 1.25
+        #     r = np.clip(np.random.randn()*rf, -rf*2, rf*2) if random.random() <= 0.6 else 0
+        #     # min = -60 ~ max = 60
+        #
+        #     if self.flip and random.random() <= 0.5:
+        #         data_numpy = data_numpy[:, ::-1, :] # reverse for x axis
+        #         # (H,W,C)
+        #         joints, joints_vis = fliplr_joints(
+        #             joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
+        #         c[0] = data_numpy.shape[1] - c[0] - 1 # because of reverse for x axis
+        #
+        # trans = get_affine_transform(c, s, r, self.image_size)
+        # input = cv2.warpAffine(
+        #     data_numpy,
+        #     trans,
+        #     (int(self.image_size[0]), int(self.image_size[1])),
+        #     flags=cv2.INTER_LINEAR)
+        # # extract a person image a picture. input.shape = [4, 3, 256, 256]
 
-            if self.flip and random.random() <= 0.5:
-                data_numpy = data_numpy[:, ::-1, :] # reverse for x axis
-                # (H,W,C)
-                joints, joints_vis = fliplr_joints(
-                    joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
-                c[0] = data_numpy.shape[1] - c[0] - 1 # because of reverse for x axis
-
-        trans = get_affine_transform(c, s, r, self.image_size)
-        input = cv2.warpAffine(
-            data_numpy,
-            trans,
-            (int(self.image_size[0]), int(self.image_size[1])),
-            flags=cv2.INTER_LINEAR)
-        # extract a person image a picture. input.shape = [4, 3, 256, 256]
-
-        input_rgb = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
-        if self.transform:
-            input = self.transform(input)
-            # Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-
-        for i in range(self.num_joints):
-            if joints_vis[i, 0] > 0.0:
-                joints[i, 0:2] = affine_transform(joints[i, 0:2], trans)
+        # input_rgb = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
+        # if self.transform:
+        #     input = self.transform(input)
+        #     # Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        #
+        # for i in range(self.num_joints):
+        #     if joints_vis[i, 0] > 0.0:
+        #         joints[i, 0:2] = affine_transform(joints[i, 0:2], trans)
 
         target, target_weight = self.generate_target(joints, joints_vis)
 
@@ -198,14 +201,8 @@ class JointsDataset(Dataset):
 
         meta = {
             'image': image_file,
-            'filename': filename,
-            'imgnum': imgnum,
             'joints': joints,
             'joints_vis': joints_vis,
-            'center': c,
-            'scale': s,
-            'rotation': r,
-            'score': score
         }
 
         return input, target, input_rgb.transpose(2, 0, 1), target_weight, meta
