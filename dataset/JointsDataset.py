@@ -183,7 +183,7 @@ class JointsDataset(Dataset):
         #     trans,
         #     (int(self.image_size[0]), int(self.image_size[1])),
         #     flags=cv2.INTER_LINEAR)
-        # # extract a person image a picture. input.shape = [4, 3, 256, 256]
+        # # extract a person image in a picture. input.shape = [4, 3, 256, 256]
 
         # input_rgb = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)
         # if self.transform:
@@ -205,7 +205,7 @@ class JointsDataset(Dataset):
             'joints_vis': joints_vis,
         }
 
-        return input, target, input_rgb.transpose(2, 0, 1), target_weight, meta
+        return data_numpy, target, data_numpy.transpose(2, 0, 1), target_weight, meta
 
     def select_data(self, db):
         db_selected = []
