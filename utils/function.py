@@ -37,12 +37,12 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     model.train()
 
     end = time.time()
-    for i, (input, target, input_rgb, target_weight, meta) in enumerate(train_loader):
+    for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
         # compute output
-        output = model(input)
+        output = model(input.to('cuda'))
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
 
@@ -82,7 +82,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             writer.add_scalar('train/acc', acc.val, global_steps)
             writer_dict['train_global_steps'] = global_steps + 1
 
-            result, ori, hm = plot_train_batch(input_rgb, output)
+            result, ori, hm = plot_train_batch(input, output)
             train_result = [result, ori, hm]
             write_tbimg(writer_dict['writer'], imgs=train_result, step=epoch, type='train')
 

@@ -102,19 +102,19 @@ def main():
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    from dataset.coco import COCODataset
+    from dataset.JointsDataset import JointsDataset
 
-    train_dataset = COCODataset(cfg=config,
+    train_dataset = JointsDataset(cfg=config,
                          root=config.DATASET.ROOT,
                          image_set=config.DATASET.TRAIN_SET,
                          is_train=True,
                          transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
-    valid_dataset = COCODataset(cfg=config,
-                         root=config.DATASET.ROOT,
-                         image_set=config.DATASET.TEST_SET,
-                         is_train=False,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
+    # valid_dataset = JointsDataset(cfg=config,
+    #                      root=config.DATASET.ROOT,
+    #                      image_set=config.DATASET.TEST_SET,
+    #                      is_train=False,
+    #                      transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
 
     train_loader = torch.utils.data.DataLoader(
@@ -124,13 +124,13 @@ def main():
         num_workers=config.WORKERS,
         pin_memory=True
     )
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=config.TEST.BATCH_SIZE*len(gpus),
-        shuffle=False,
-        num_workers=config.WORKERS,
-        pin_memory=True
-    )
+    # valid_loader = torch.utils.data.DataLoader(
+    #     valid_dataset,
+    #     batch_size=config.TEST.BATCH_SIZE*len(gpus),
+    #     shuffle=False,
+    #     num_workers=config.WORKERS,
+    #     pin_memory=True
+    # )
 
     best_perf = 0.0
     best_model = False
@@ -142,24 +142,24 @@ def main():
 
 
         # evaluate on validation set
-        perf_indicator = validate(config, valid_loader, valid_dataset, model,
-                                  criterion, epoch, final_output_dir, tb_log_dir,
-                                  writer_dict)
+        # perf_indicator = validate(config, valid_loader, valid_dataset, model,
+        #                           criterion, epoch, final_output_dir, tb_log_dir,
+        #                           writer_dict)
 
-        if perf_indicator > best_perf:
-            best_perf = perf_indicator
-            best_model = True
-        else:
-            best_model = False
-
-        logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'model': get_model_name(config),
-            'state_dict': model.state_dict(),
-            'perf': perf_indicator,
-            'optimizer': optimizer.state_dict(),
-        }, best_model, final_output_dir)
+        # if perf_indicator > best_perf:
+        #     best_perf = perf_indicator
+        #     best_model = True
+        # else:
+        #     best_model = False
+        #
+        # logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+        # save_checkpoint({
+        #     'epoch': epoch + 1,
+        #     'model': get_model_name(config),
+        #     'state_dict': model.state_dict(),
+        #     'perf': perf_indicator,
+        #     'optimizer': optimizer.state_dict(),
+        # }, best_model, final_output_dir)
 
 
     lr_scheduler.step()
@@ -173,5 +173,5 @@ def main():
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('Simple_Baseline : COCO')
+    setproctitle('Simple_Baseline : Workout')
     main()

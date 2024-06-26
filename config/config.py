@@ -44,8 +44,8 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = True
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
-config.MODEL.NUM_JOINTS = 17
+config.MODEL.PRETRAINED = '' #/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
+config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
 
@@ -59,9 +59,9 @@ config.DATASET = edict()
 config.DATASET.ROOT_LABEL = '/storage/jysuh/fitness/fitness/train/label'
 config.DATASET.ROOT_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
 config.DATASET.ROOT       = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
-config.DATASET.DATASET = 'coco'
-config.DATASET.TRAIN_SET = 'train2017'
-config.DATASET.TEST_SET = 'valid2017'
+config.DATASET.DATASET = 'workout'
+config.DATASET.TRAIN_SET = 'train'
+config.DATASET.TEST_SET = 'validation'
 # config.DATASET.TRAIN_SET = 'valid2017'
 config.DATASET.DATA_FORMAT = 'jpg'
 config.DATASET.HYBRID_JOINTS_TYPE = ''
@@ -92,7 +92,7 @@ config.TRAIN.END_EPOCH = 50
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 64
+config.TRAIN.BATCH_SIZE = 128
 config.TRAIN.SHUFFLE = True
 
 # testing
@@ -224,4 +224,4 @@ def get_model_name(cfg):
 if __name__ == '__main__':
     import sys
     # gen_config(sys.argv[1])
-    gen_config('/home/jysuh/PycharmProjects/Simple_Baseline_For_HPE/config/coco.yaml')
+    gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/coco.yaml')

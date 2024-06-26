@@ -19,7 +19,7 @@ if __name__ == '__main__':
     json_list = []
 
     for path in os.listdir(base_path):
-        if 'json' not in path: # and 'furniture' in path or 'new' in path
+        if 'json' not in path: #'furniture' in path or 'new' in path
             label_path.append(base_path + '/' + path)
 
     for fitness_type_idx, _ in enumerate(tqdm(label_path, desc="collect every json file in workout directory  ")):
@@ -41,8 +41,8 @@ if __name__ == '__main__':
     #              'joints_vis' : []}
     data_dict = {}
 
-    # cnt = 0
-    # jnt = 0
+    cnt = 0
+    jnt = 0
     # for json_idx in range(len(json_list)):
     #     with open(json_list[json_idx], 'r') as f:
     #         data = json.load(f)
@@ -66,33 +66,45 @@ if __name__ == '__main__':
             for frame_idx in range(len(data['frames'])):
                 for idx, view_idx in enumerate (data['frames'][frame_idx].keys()):
                     # PTS
+                    # if 'Day23_201024_F/5/D/093-1-1-04-Z102_D-' in data['frames'][frame_idx][view_idx]['img_key'] and 'body_04' in exercise_path:
+                    #     print(data['frames'][frame_idx][view_idx]['img_key'])
+
+                    if data['frames'][frame_idx][view_idx]['img_key'].split('/')[3].split('-')[-1] == '':
+                        split_img_key = data['frames'][frame_idx][view_idx]['img_key'].split('/')
+                        split_img_key_ = split_img_key[3].split('-')
+                        del split_img_key_[-1]
+                        split_img_key[3] = '-'.join(split_img_key_)
+                        data['frames'][frame_idx][view_idx]['img_key'] = '/'.join(split_img_key)
+
                     img_path = os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key'])
-                    # cnt += 1
-                    if img_path not in data_dict.keys():
-                        # jnt += 1
-                        # data_dict[img_path]['pts'] = data['frames'][frame_idx][view_idx]['pts']
-                        # data_dict['pts'].append(data['frames'][frame_idx][view_idx]['pts'])
-                        # data_dict['img_path'].append(os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key']))
 
-                        # JOINTS
-                        joints = []
-                        joints_vis = []
-                        #
-                        data_dict.setdefault(img_path, {'joints': None})
-                        data_dict.setdefault(img_path, {'joints_vis': None})
-                        # data_dict[img_path].setdefault('joints', None)
-                        # data_dict[img_path].setdefault('joints_vis', None)
-                        #
-                        for joint_idx, joint in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
-                            joint_pts = [data['frames'][frame_idx][view_idx]['pts'][joint]['x'], data['frames'][frame_idx][view_idx]['pts'][joint]['y']]
-                            joints.append(joint_pts)
+                    if os.path.exists(img_path):
+                        cnt += 1
+                        if img_path not in data_dict.keys():
+                            jnt += 1
+                            # data_dict[img_path]['pts'] = data['frames'][frame_idx][view_idx]['pts']
+                            # data_dict['pts'].append(data['frames'][frame_idx][view_idx]['pts'])
+                            # data_dict['img_path'].append(os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key']))
 
-                            joint_visibility = [1, 1]
-                            joints_vis.append(joint_visibility)
+                            # JOINTS
+                            joints = []
+                            # joints_vis = []
+                            #
+                            data_dict.setdefault(img_path, {'joints': None})
+                            # data_dict.setdefault(img_path, {'joints_vis': None})
+                            # data_dict[img_path].setdefault('joints', None)
+                            # data_dict[img_path].setdefault('joints_vis', None)
+                            #
+                            for joint_idx, joint in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
+                                joint_pts = [data['frames'][frame_idx][view_idx]['pts'][joint]['x'], data['frames'][frame_idx][view_idx]['pts'][joint]['y'], 0.]
+                                joints.append(joint_pts)
 
-                        data_dict[img_path]['joints'] = joints
-                        data_dict[img_path]['joints_vis'] = joints_vis
-                        # del data_dict[img_path]['pts']
+                                # joint_visibility = [1, 1]
+                                # joints_vis.append(joint_visibility)
+
+                            data_dict[img_path]['joints'] = joints
+                            # data_dict[img_path]['joints_vis'] = joints_vis
+                            # del data_dict[img_path]['pts']
 
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json', 'w', encoding='utf-8') as f:
         json.dump(data_dict, f, ensure_ascii=False, indent=4)

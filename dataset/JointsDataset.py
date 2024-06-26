@@ -33,14 +33,14 @@ logger = logging.getLogger(__name__)
 class JointsDataset(Dataset):
     def __init__(self, cfg, root, image_set, is_train, transform=None):
         self.cfg = cfg
-        self.num_joints = 0
+        self.num_joints = 24
         self.pixel_std = 200
         self.flip_pairs = []
         self.parent_ids = []
 
         self.is_train = is_train
         self.root = root
-        self.image_set = image_set
+        self.image_set = image_set                  # whether the dataset is train or validation
 
         self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
@@ -55,7 +55,7 @@ class JointsDataset(Dataset):
         self.sigma = cfg.MODEL.EXTRA.SIGMA
 
         self.transform = transform
-        self.json_files = self.get_json_files()
+        # self.json_files = self.get_json_files()
         # self.make_db = self.make_db()
         self.key, self.db = self.get_db()
 
@@ -79,7 +79,6 @@ class JointsDataset(Dataset):
         return json_list
 
     def make_db(self):
-        view_list = ['view1', 'view2', 'view3', 'view4', 'view5']
         # data_dict = {'pts' : [] ,
         #              'img_path' : [],
         #              'joints' : [],
@@ -89,41 +88,57 @@ class JointsDataset(Dataset):
         for json_idx in tqdm(range(len(self.json_files)), leave=True, desc="extracting img path and pts from json file  "):
             json_file = self.json_files[json_idx]
             exercise_path = self.json_files[json_idx].replace('label', 'image').split('/')
+            if 'barbell_dumbbell' in exercise_path[8]:
+                num = exercise_path[8].split('_')[2]
+                exercise_path[8] = 'babel'
+                exercise_path[8] = '_'.join([exercise_path[8], num])
             exercise_path = os.path.join('/'.join(exercise_path[0:7]), '/'.join(exercise_path[8:-2]))
             with open(json_file, 'r') as f:
                 data = json.load(f)
                 for frame_idx in range(len(data['frames'])):
-                    for _, view_idx in enumerate(view_list):
+                    for idx, view_idx in enumerate(data['frames'][frame_idx].keys()):
                         # PTS
                         img_path = os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key'])
-                        data_dict.setdefault(img_path, {'pts': None})
-                        data_dict[img_path]['pts'] = data['frames'][frame_idx][view_idx]['pts']
-                        # data_dict['pts'].append(data['frames'][frame_idx][view_idx]['pts'])
-                        # data_dict['img_path'].append(os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key']))
+                        # cnt += 1
+                        if img_path not in data_dict.keys():
+                            # jnt += 1
+                            # data_dict[img_path]['pts'] = data['frames'][frame_idx][view_idx]['pts']
+                            # data_dict['pts'].append(data['frames'][frame_idx][view_idx]['pts'])
+                            # data_dict['img_path'].append(os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key']))
 
-                        # JOINTS
-                        joints = []
-                        joints_vis = []
-                        #
-                        data_dict[img_path].setdefault('joints', None)
-                        data_dict[img_path].setdefault('joints_vis', None)
-                        #
-                        for joint_idx, joint in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
-                            joint_pts = [data_dict[img_path]['pts'][joint]['x'], data_dict[img_path]['pts'][joint]['y']]
-                            joints.append(joint_pts)
+                            # JOINTS
+                            joints = []
+                            joints_vis = []
+                            #
+                            data_dict.setdefault(img_path, {'joints': None})
+                            data_dict.setdefault(img_path, {'joints_vis': None})
+                            # data_dict[img_path].setdefault('joints', None)
+                            # data_dict[img_path].setdefault('joints_vis', None)
+                            #
+                            for joint_idx, joint in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
+                                joint_pts = [data['frames'][frame_idx][view_idx]['pts'][joint]['x'],
+                                             data['frames'][frame_idx][view_idx]['pts'][joint]['y']]
+                                joints.append(joint_pts)
 
-                            joint_visibility = [1, 1]
-                            joints_vis.append(joint_visibility)
+                                joint_visibility = [1, 1]
+                                joints_vis.append(joint_visibility)
 
-                        data_dict[img_path]['joints'] = joints
-                        data_dict[img_path]['joints_vis'] = joints_vis
+                            data_dict[img_path]['joints'] = joints
+                            data_dict[img_path]['joints_vis'] = joints_vis
 
         return data_dict
     def get_db(self):
-        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json', 'r') as f:
-            db = json.load(f)
+        if self.image_set == 'train':
+            with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json', 'r') as f:
+                db = json.load(f)
+
+        elif self.image_set == 'validation':
+            with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json', 'r') as f:
+                db = json.load(f)
 
         dict_key_list = []
+
+        self.cfg.MODEL.IMAGE_SIZE
         for _, key in enumerate(tqdm(db.keys(), desc="get key of dict from db")):
             dict_key_list.append(key)
 
@@ -152,9 +167,15 @@ class JointsDataset(Dataset):
             logger.error('=> fail to read {}'.format(image_file))
             raise ValueError('Fail to read {}'.format(image_file))
 
-        joints = self.db[image_file]['joints']
-        joints_vis = self.db[image_file]['joints_vis']
-
+        w, h = data_numpy.shape[1], data_numpy.shape[0]
+        #
+        joints = np.array(self.db[image_file]['joints'])
+        joints[:,0], joints[:,1] = joints[:,0] / w * self.cfg.MODEL.IMAGE_SIZE[0], joints[:,1] / h * self.cfg.MODEL.IMAGE_SIZE[0]
+        #
+        data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
+        data_numpy = cv2.resize(data_numpy, (256,256))
+        #
+        data_numpy = data_numpy.transpose(2,0,1)
         # c = db_rec['center']
         # s = db_rec['scale']
         # score = db_rec['score'] if 'score' in db_rec else 1
@@ -194,18 +215,17 @@ class JointsDataset(Dataset):
         #     if joints_vis[i, 0] > 0.0:
         #         joints[i, 0:2] = affine_transform(joints[i, 0:2], trans)
 
-        target, target_weight = self.generate_target(joints, joints_vis)
-
+        target, target_weight = self.generate_target(joints)
+        data_numpy = torch.from_numpy(data_numpy).float()
         target = torch.from_numpy(target)
         target_weight = torch.from_numpy(target_weight)
 
         meta = {
             'image': image_file,
             'joints': joints,
-            'joints_vis': joints_vis,
         }
 
-        return data_numpy, target, data_numpy.transpose(2, 0, 1), target_weight, meta
+        return data_numpy, target, target_weight, meta
 
     def select_data(self, db):
         db_selected = []
@@ -240,14 +260,13 @@ class JointsDataset(Dataset):
         logger.info('=> num selected db: {}'.format(len(db_selected)))
         return db_selected
 
-    def generate_target(self, joints, joints_vis):
+    def generate_target(self, joints):
         '''
         :param joints:  [num_joints, 3]
         :param joints_vis: [num_joints, 3]
         :return: target, target_weight(1: visible, 0: invisible)
         '''
         target_weight = np.ones((self.num_joints, 1), dtype=np.float32)
-        target_weight[:, 0] = joints_vis[:, 0] #  target_weight means whether the joints are detected
 
         assert self.target_type == 'gaussian', \
             'Only support gaussian map now!'

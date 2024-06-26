@@ -3,16 +3,18 @@ CUDNN:
   DETERMINISTIC: false
   ENABLED: true
 DATASET:
-  DATASET: coco
+  DATASET: workout
   DATA_FORMAT: jpg
   FLIP: true
   HYBRID_JOINTS_TYPE: ''
-  ROOT: /storage/jysuh/coco2017/coco
+  ROOT: /storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json
+  ROOT_IMAGE: /storage/jysuh/fitness/fitness/train/image
+  ROOT_LABEL: /storage/jysuh/fitness/fitness/train/label
   ROT_FACTOR: 30
   SCALE_FACTOR: 0.25
   SELECT_DATA: false
-  TEST_SET: valid2017
-  TRAIN_SET: train2017
+  TEST_SET: validation
+  TRAIN_SET: train
 DATA_DIR: ''
 DEBUG:
   DEBUG: false
@@ -59,8 +61,8 @@ MODEL:
   - 256
   INIT_WEIGHTS: true
   NAME: pose_resnet
-  NUM_JOINTS: 17
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar
+  NUM_JOINTS: 24
+  PRETRAINED: ''
   STYLE: pytorch
 OUTPUT_DIR: ''
 PRINT_FREQ: 20
@@ -78,7 +80,7 @@ TEST:
   SHIFT_HEATMAP: true
   USE_GT_BBOX: false
 TRAIN:
-  BATCH_SIZE: 64
+  BATCH_SIZE: 128
   BEGIN_EPOCH: 0
   CHECKPOINT: ''
   END_EPOCH: 50
