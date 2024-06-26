@@ -62,7 +62,7 @@ MODEL:
   INIT_WEIGHTS: true
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: ''
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar
   STYLE: pytorch
 OUTPUT_DIR: ''
 PRINT_FREQ: 20

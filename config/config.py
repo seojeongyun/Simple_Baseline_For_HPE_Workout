@@ -44,7 +44,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = True
-config.MODEL.PRETRAINED = '' #/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
 config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
@@ -224,4 +224,4 @@ def get_model_name(cfg):
 if __name__ == '__main__':
     import sys
     # gen_config(sys.argv[1])
-    gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/coco.yaml')
+    gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/workout.yaml')

@@ -261,6 +261,10 @@ class PoseResNet(nn.Module):
             logger.info('=> loading pretrained models {}'.format(pretrained))
             # self.load_state_dict(pretrained_state_dict, strict=False)
             checkpoint = torch.load(pretrained)
+            final_module_bias = list(checkpoint.keys())[-1]
+            final_module_weight = list(checkpoint.keys())[-2]
+            del checkpoint[final_module_bias]
+            del checkpoint[final_module_weight]
             # if isinstance(checkpoint, OrderedDict):
             #     state_dict = checkpoint
             # elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
