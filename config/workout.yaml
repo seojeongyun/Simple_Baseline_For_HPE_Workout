@@ -15,6 +15,8 @@ DATASET:
   SELECT_DATA: false
   TEST_SET: validation
   TRAIN_SET: train
+  TRAIN_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json
+  VALID_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/valid.json
 DATA_DIR: ''
 DEBUG:
   DEBUG: false
@@ -80,7 +82,7 @@ TEST:
   SHIFT_HEATMAP: true
   USE_GT_BBOX: false
 TRAIN:
-  BATCH_SIZE: 128
+  BATCH_SIZE: 32
   BEGIN_EPOCH: 0
   CHECKPOINT: ''
   END_EPOCH: 50

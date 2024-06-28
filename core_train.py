@@ -110,11 +110,11 @@ def main():
                          is_train=True,
                          transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
-    # valid_dataset = JointsDataset(cfg=config,
-    #                      root=config.DATASET.ROOT,
-    #                      image_set=config.DATASET.TEST_SET,
-    #                      is_train=False,
-    #                      transform=transforms.Compose([transforms.ToTensor(), normalize]))
+    valid_dataset = JointsDataset(cfg=config,
+                         root=config.DATASET.ROOT,
+                         image_set=config.DATASET.TEST_SET,
+                         is_train=False,
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
 
     train_loader = torch.utils.data.DataLoader(
@@ -124,13 +124,13 @@ def main():
         num_workers=config.WORKERS,
         pin_memory=True
     )
-    # valid_loader = torch.utils.data.DataLoader(
-    #     valid_dataset,
-    #     batch_size=config.TEST.BATCH_SIZE*len(gpus),
-    #     shuffle=False,
-    #     num_workers=config.WORKERS,
-    #     pin_memory=True
-    # )
+    valid_loader = torch.utils.data.DataLoader(
+        valid_dataset,
+        batch_size=config.TEST.BATCH_SIZE*len(gpus),
+        shuffle=False,
+        num_workers=config.WORKERS,
+        pin_memory=True
+    )
 
     best_perf = 0.0
     best_model = False
@@ -162,7 +162,8 @@ def main():
         # }, best_model, final_output_dir)
 
 
-    lr_scheduler.step()
+        lr_scheduler.step()
+    #
     final_model_state_file = os.path.join(final_output_dir,
                                           'final_state.pth.tar')
     logger.info('saving final model state to {}'.format(

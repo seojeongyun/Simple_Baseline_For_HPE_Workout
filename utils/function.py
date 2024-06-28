@@ -211,9 +211,12 @@ def validate(config, val_loader, val_dataset, model, criterion, epoch, output_di
 
     return perf_indicator
 
-def plot_train_batch(input, output, gamma=0.2, max_subplots=16):
+def plot_train_batch(input, output, gamma=0.5, max_subplots=16):
     if isinstance(input, torch.Tensor):
         input = input.cpu().detach().numpy()
+        # img = input[0].transpose(2, 0).transpose(1, 0)
+        # img = img.type(torch.uint8)
+        # plt.imshow(img)
     if isinstance(output, torch.Tensor):
         upsample = torch.nn.Upsample(size=(256,256), mode='nearest')
         output = upsample(output)
@@ -235,13 +238,14 @@ def plot_train_batch(input, output, gamma=0.2, max_subplots=16):
     # zeros = np.zeros(all.shape)
     # all = np.concatenate((all,zeros,zeros), axis=1)
 
-
     for i in range(output.shape[0]):
         temp[i] = cv2.applyColorMap(temp[i].transpose(1, 2, 0), cv2.COLORMAP_JET).transpose(2, 0, 1)
+        temp[i] = np.stack([temp[i][2, :, :], temp[i][1, :, :], temp[i][0, :, :]], axis=0)
     # result = input + gamma * np.stack(temp, axis=0)
 
-    result = (input + np.stack(temp, axis=0) * gamma).astype('uint8')
-    return result, input, np.stack(temp, axis=0)
+    result = (deepcopy(input)*(1-gamma) + np.stack(temp, axis=0) * gamma).astype('uint8')
+    return result, input.astype(np.uint8), np.stack(temp, axis=0)
+        # rgb img + htmap / rgb img / htmap
 
 
 # markdown format output

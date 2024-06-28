@@ -58,8 +58,10 @@ config.LOSS.USE_TARGET_WEIGHT = True
 config.DATASET = edict()
 config.DATASET.ROOT_LABEL = '/storage/jysuh/fitness/fitness/train/label'
 config.DATASET.ROOT_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
-config.DATASET.ROOT       = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
+config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
+config.DATASET.TRAIN_SET_PATH= '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json'
+config.DATASET.VALID_SET_PATH= '/storage/jysuh/Simple_Baseline_For_HPE_Workout/valid.json'
 config.DATASET.TRAIN_SET = 'train'
 config.DATASET.TEST_SET = 'validation'
 # config.DATASET.TRAIN_SET = 'valid2017'
@@ -92,7 +94,7 @@ config.TRAIN.END_EPOCH = 50
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 128
+config.TRAIN.BATCH_SIZE = 32
 config.TRAIN.SHUFFLE = True
 
 # testing

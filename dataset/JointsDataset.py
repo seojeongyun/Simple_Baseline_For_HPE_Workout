@@ -129,16 +129,15 @@ class JointsDataset(Dataset):
         return data_dict
     def get_db(self):
         if self.image_set == 'train':
-            with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json', 'r') as f:
+            with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r') as f:
                 db = json.load(f)
 
         elif self.image_set == 'validation':
-            with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json', 'r') as f:
+            with open(self.cfg.DATASET.VALID_SET_PATH, 'r') as f:
                 db = json.load(f)
 
         dict_key_list = []
 
-        self.cfg.MODEL.IMAGE_SIZE
         for _, key in enumerate(tqdm(db.keys(), desc="get key of dict from db")):
             dict_key_list.append(key)
 
