@@ -26,7 +26,7 @@ from utils.events import NCOLS, load_yaml, write_tbimg
 logger = logging.getLogger(__name__)
 
 
-def train(config, train_loader, model, criterion, optimizer, epoch,
+def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
           output_dir, tb_log_dir, writer_dict):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -82,7 +82,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             writer.add_scalar('train/acc', acc.val, global_steps)
             writer_dict['train_global_steps'] = global_steps + 1
 
-            result, ori, hm = plot_train_batch(input, output)
+            result, ori, hm = plot_train_batch(config, input, output)
             train_result = [result, ori, hm]
             write_tbimg(writer_dict['writer'], imgs=train_result, step=epoch, type='train')
 
@@ -90,8 +90,14 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             save_debug_images(config, input, meta, target, pred*4, output,
                               prefix)
 
+        if i % (config.PRINT_FREQ * 3) == 0:
+            validate(config=config, val_loader=valid_loader, model=model,
+                     criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
+                     writer_dict=writer_dict)
 
-def validate(config, val_loader, val_dataset, model, criterion, epoch, output_dir,
+
+
+def validate(config, val_loader, model, criterion, epoch, output_dir,
              tb_log_dir, writer_dict=None):
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -100,36 +106,12 @@ def validate(config, val_loader, val_dataset, model, criterion, epoch, output_di
     # switch to evaluate mode
     model.eval()
 
-    num_samples = len(val_dataset)
-    all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3),
-                         dtype=np.float32)
-    all_boxes = np.zeros((num_samples, 6)) # The shape of all_boxes is (104125, 6). all_boxes is tuple. what is 6 ?
-    image_path = []
-    filenames = []
-    imgnums = []
     idx = 0
     with torch.no_grad():
         end = time.time()
-        for i, (input, target, input_rgb, target_weight, meta) in enumerate(val_loader):
+        for i, (input, target, target_weight, meta) in enumerate(val_loader):
             # compute output
             output = model(input)
-            if config.TEST.FLIP_TEST:
-                # this part is ugly, because pytorch has not supported negative index
-                # input_flipped = models(input[:, :, :, ::-1]) # #, C, H, W
-                input_flipped = np.flip(input.cpu().numpy(), 3).copy()
-                input_flipped = torch.from_numpy(input_flipped).cuda()
-                output_flipped = model(input_flipped)
-                output_flipped = flip_back(output_flipped.cpu().numpy(),
-                                           val_dataset.flip_pairs)
-                output_flipped = torch.from_numpy(output_flipped.copy()).cuda()
-
-                # feature is not aligned, shift flipped heatmap for higher accuracy
-                if config.TEST.SHIFT_HEATMAP:
-                    output_flipped[:, :, :, 1:] = \
-                        output_flipped.clone()[:, :, :, 0:-1]
-                    # output_flipped[:, :, :, 0] = 0
-
-                output = (output + output_flipped) * 0.5
 
             target = target.cuda(non_blocking=True)
             target_weight = target_weight.cuda(non_blocking=True)
@@ -148,26 +130,21 @@ def validate(config, val_loader, val_dataset, model, criterion, epoch, output_di
             batch_time.update(time.time() - end)
             end = time.time()
 
-            c = meta['center'].numpy()
-            s = meta['scale'].numpy()
-            score = meta['score'].numpy()
+            # c = meta['center'].numpy()
+            # s = meta['scale'].numpy()
+            # score = meta['score'].numpy()
+            #
+            # preds, maxvals = get_final_preds(
+            #     config, output.clone().cpu().numpy(), c, s)
 
-            preds, maxvals = get_final_preds(
-                config, output.clone().cpu().numpy(), c, s)
+            # all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
+            # all_preds[idx:idx + num_images, :, 2:3] = maxvals
+            # # double check this all_boxes parts
+            # all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
+            # all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
+            # all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
+            # all_boxes[idx:idx + num_images, 5] = score
 
-            all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
-            all_preds[idx:idx + num_images, :, 2:3] = maxvals
-            # double check this all_boxes parts
-            all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
-            all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-            all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
-            all_boxes[idx:idx + num_images, 5] = score
-            image_path.extend(meta['image'])
-            if config.DATASET.DATASET == 'posetrack':
-                filenames.extend(meta['filename'])
-                imgnums.extend(meta['imgnum'].numpy())
-
-            idx += num_images
 
             if i % config.PRINT_FREQ == 0:
                 msg = 'Test: [{0}/{1}]\t' \
@@ -180,45 +157,28 @@ def validate(config, val_loader, val_dataset, model, criterion, epoch, output_di
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
 
-                result, ori, hm = plot_train_batch(input_rgb, output)
+                result, ori, hm = plot_train_batch(config, input, output)
                 valid_result = [result, ori, hm]
                 write_tbimg(writer_dict['writer'], imgs=valid_result, step=epoch, type='val')
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
-
-        name_values, perf_indicator = val_dataset.evaluate(
-            config, all_preds, output_dir, all_boxes, image_path,
-            filenames, imgnums)
-
-        _, full_arch_name = get_model_name(config)
-        if isinstance(name_values, list):
-            for name_value in name_values:
-                _print_name_value(name_value, full_arch_name)
-        else:
-            _print_name_value(name_values, full_arch_name)
 
         if writer_dict:
             writer = writer_dict['writer']
             global_steps = writer_dict['valid_global_steps']
             writer.add_scalar('valid/loss', losses.avg, global_steps)
             writer.add_scalar('valid/acc', acc.avg, global_steps)
-            if isinstance(name_values, list):
-                for name_value in name_values:
-                    writer.add_scalars('valid', dict(name_value), global_steps)
-            else:
-                writer.add_scalars('valid', dict(name_values), global_steps)
-            writer_dict['valid_global_steps'] = global_steps + 1
 
-    return perf_indicator
 
-def plot_train_batch(input, output, gamma=0.5, max_subplots=16):
+
+def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):
     if isinstance(input, torch.Tensor):
         input = input.cpu().detach().numpy()
         # img = input[0].transpose(2, 0).transpose(1, 0)
         # img = img.type(torch.uint8)
         # plt.imshow(img)
     if isinstance(output, torch.Tensor):
-        upsample = torch.nn.Upsample(size=(256,256), mode='nearest')
+        upsample = torch.nn.Upsample(size=(config.MODEL.IMAGE_SIZE,config.MODEL.IMAGE_SIZE), mode='nearest')
         output = upsample(output)
         output = output.cpu().detach().numpy()
 

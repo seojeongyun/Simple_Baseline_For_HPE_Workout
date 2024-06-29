@@ -15,7 +15,7 @@ DATASET:
   SELECT_DATA: false
   TEST_SET: validation
   TRAIN_SET: train
-  TRAIN_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/data_pts_del.json
+  TRAIN_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/train.json
   VALID_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/valid.json
 DATA_DIR: ''
 DEBUG:
@@ -34,8 +34,8 @@ MODEL:
       DECONV_WITH_BIAS: false
       FINAL_CONV_KERNEL: 1
       HEATMAP_SIZE: &id001
-      - 64
-      - 64
+      - 128
+      - 128
       NUM_DECONV_FILTERS: &id002
       - 256
       - 256
@@ -59,8 +59,8 @@ MODEL:
       SIGMA: 2
       TARGET_TYPE: gaussian
   IMAGE_SIZE:
-  - 256
-  - 256
+  - 512
+  - 512
   INIT_WEIGHTS: true
   NAME: pose_resnet
   NUM_JOINTS: 24
@@ -69,7 +69,7 @@ MODEL:
 OUTPUT_DIR: ''
 PRINT_FREQ: 20
 TEST:
-  BATCH_SIZE: 32
+  BATCH_SIZE: 64
   BBOX_THRE: 1.0
   COCO_BBOX_FILE: /storage/jysuh/coco2017/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json
   FLIP_TEST: false

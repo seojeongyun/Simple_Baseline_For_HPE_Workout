@@ -132,16 +132,24 @@ class JointsDataset(Dataset):
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r') as f:
                 db = json.load(f)
 
+            dict_key_list = []
+
+            for _, key in enumerate(tqdm(db.keys(), desc="get train data from train.json")):
+                dict_key_list.append(key)
+
+            return dict_key_list, db
+
         elif self.image_set == 'validation':
             with open(self.cfg.DATASET.VALID_SET_PATH, 'r') as f:
                 db = json.load(f)
 
-        dict_key_list = []
+            dict_key_list = []
 
-        for _, key in enumerate(tqdm(db.keys(), desc="get key of dict from db")):
-            dict_key_list.append(key)
+            for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json")):
+                dict_key_list.append(key)
 
-        return dict_key_list, db
+            return dict_key_list, db
+
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError
@@ -172,7 +180,7 @@ class JointsDataset(Dataset):
         joints[:,0], joints[:,1] = joints[:,0] / w * self.cfg.MODEL.IMAGE_SIZE[0], joints[:,1] / h * self.cfg.MODEL.IMAGE_SIZE[0]
         #
         data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
-        data_numpy = cv2.resize(data_numpy, (256,256))
+        data_numpy = cv2.resize(data_numpy, (self.cfg.MODEL.IMAGE_SIZE[0], self.cfg.MODEL.IMAGE_SIZE[1]))
         #
         data_numpy = data_numpy.transpose(2,0,1)
         # c = db_rec['center']

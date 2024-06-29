@@ -124,6 +124,7 @@ def main():
         num_workers=config.WORKERS,
         pin_memory=True
     )
+
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=config.TEST.BATCH_SIZE*len(gpus),
@@ -137,7 +138,7 @@ def main():
     for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
 
         # train for one epoch
-        train(config, train_loader, model, criterion, optimizer, epoch,
+        train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
             final_output_dir, tb_log_dir, writer_dict)
 
 
@@ -151,8 +152,8 @@ def main():
         #     best_model = True
         # else:
         #     best_model = False
-        #
-        # logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+
+        logger.info('=> saving checkpoint to {}'.format(final_output_dir))
         # save_checkpoint({
         #     'epoch': epoch + 1,
         #     'model': get_model_name(config),
@@ -161,6 +162,12 @@ def main():
         #     'optimizer': optimizer.state_dict(),
         # }, best_model, final_output_dir)
 
+        save_checkpoint({
+            'epoch': epoch + 1,
+            'model': get_model_name(config),
+            'state_dict': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }, best_model, final_output_dir)
 
         lr_scheduler.step()
     #
@@ -174,5 +181,5 @@ def main():
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('Simple_Baseline : Workout')
+    setproctitle('Simple_Baseline : Workout [512,512]')
     main()
