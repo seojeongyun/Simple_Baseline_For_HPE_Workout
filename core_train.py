@@ -128,19 +128,36 @@ def main():
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=config.TEST.BATCH_SIZE*len(gpus),
-        shuffle=False,
+        shuffle=config.TEST.SHUFFLE,
         num_workers=config.WORKERS,
         pin_memory=True
     )
 
     best_perf = 0.0
+    val_acc = 0.0
     best_model = False
     for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
-
+        acc_list = []
         # train for one epoch
-        train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-            final_output_dir, tb_log_dir, writer_dict)
 
+        train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+                             final_output_dir, tb_log_dir, writer_dict, acc_list)
+
+        # val_acc_list = train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+        #     final_output_dir, tb_log_dir, writer_dict, acc_list)
+
+        # for i in range(len(val_acc_list)):
+        #     val_acc += val_acc_list[i]
+
+        # msg = 'Epoch: [{0}]\t' \
+        #       'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+        #     epoch, acc=val_acc/len(val_acc_list))
+        # logger.info(msg)
+
+        # if writer_dict:
+        #     writer = writer_dict['writer']
+        #     global_steps = writer_dict['valid_global_steps']
+        #     writer.add_scalar('valid/acc_for_one_epoch', val_acc/len(val_acc_list), global_steps)
 
         # evaluate on validation set
         # perf_indicator = validate(config, valid_loader, valid_dataset, model,
@@ -171,15 +188,18 @@ def main():
 
         lr_scheduler.step()
     #
-    final_model_state_file = os.path.join(final_output_dir,
+    final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
                                           'final_state.pth.tar')
+
     logger.info('saving final model state to {}'.format(
         final_model_state_file))
+
     torch.save(model.module.state_dict(), final_model_state_file)
+
     writer_dict['writer'].close()
 
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('Simple_Baseline : Workout [512,512]')
+    setproctitle('Simple_Baseline : Workout [1024, 1024]')
     main()

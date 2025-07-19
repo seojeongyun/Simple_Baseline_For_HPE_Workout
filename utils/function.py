@@ -27,17 +27,17 @@ logger = logging.getLogger(__name__)
 
 
 def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-          output_dir, tb_log_dir, writer_dict):
+          output_dir, tb_log_dir, writer_dict, acc_list):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
 
-    # switch to train mode
-    model.train()
-
     end = time.time()
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
+        # switch to train mode
+        model.train()
+
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -91,11 +91,13 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                               prefix)
 
         if i % (config.PRINT_FREQ * 3) == 0:
-            validate(config=config, val_loader=valid_loader, model=model,
+            acc_val = validate(config=config, val_loader=valid_loader, model=model,
                      criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
                      writer_dict=writer_dict)
 
+            acc_list.append(acc_val)
 
+    return acc_list
 
 def validate(config, val_loader, model, criterion, epoch, output_dir,
              tb_log_dir, writer_dict=None):
@@ -163,11 +165,14 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
 
-        if writer_dict:
-            writer = writer_dict['writer']
-            global_steps = writer_dict['valid_global_steps']
-            writer.add_scalar('valid/loss', losses.avg, global_steps)
-            writer.add_scalar('valid/acc', acc.avg, global_steps)
+            if writer_dict:
+                writer = writer_dict['writer']
+                global_steps = writer_dict['valid_global_steps']
+                writer.add_scalar('valid/loss', losses.avg, global_steps)
+                writer.add_scalar('valid/acc', acc.avg, global_steps)
+
+            break
+    return acc
 
 
 
@@ -178,7 +183,7 @@ def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):
         # img = img.type(torch.uint8)
         # plt.imshow(img)
     if isinstance(output, torch.Tensor):
-        upsample = torch.nn.Upsample(size=(config.MODEL.IMAGE_SIZE,config.MODEL.IMAGE_SIZE), mode='nearest')
+        upsample = torch.nn.Upsample(size=(config.MODEL.IMAGE_SIZE[0],config.MODEL.IMAGE_SIZE[1]), mode='nearest')
         output = upsample(output)
         output = output.cpu().detach().numpy()
 

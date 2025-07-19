@@ -33,7 +33,7 @@ POSE_RESNET.NUM_DECONV_FILTERS = [256, 256, 256]
 POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
 POSE_RESNET.FINAL_CONV_KERNEL = 1
 POSE_RESNET.TARGET_TYPE = 'gaussian'
-POSE_RESNET.HEATMAP_SIZE = [128, 128]  # width * height, ex: 24 * 32
+POSE_RESNET.HEATMAP_SIZE = [256, 256]  # width * height, ex: 24 * 32
 POSE_RESNET.SIGMA = 2
 
 MODEL_EXTRAS = {
@@ -45,8 +45,9 @@ config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = True
 config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
+#'/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
 config.MODEL.NUM_JOINTS = 24
-config.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
+config.MODEL.IMAGE_SIZE = [1024, 1024]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
 
 config.MODEL.STYLE = 'pytorch'
@@ -60,7 +61,7 @@ config.DATASET.ROOT_LABEL = '/storage/jysuh/fitness/fitness/train/label'
 config.DATASET.ROOT_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
-config.DATASET.TRAIN_SET_PATH= '/train.json'
+config.DATASET.TRAIN_SET_PATH= '/storage/jysuh/Simple_Baseline_For_HPE_Workout/train.json'
 config.DATASET.VALID_SET_PATH= '/storage/jysuh/Simple_Baseline_For_HPE_Workout/valid.json'
 config.DATASET.TRAIN_SET = 'train'
 config.DATASET.TEST_SET = 'validation'
@@ -89,19 +90,19 @@ config.TRAIN.GAMMA1 = 0.99
 config.TRAIN.GAMMA2 = 0.0
 
 config.TRAIN.BEGIN_EPOCH = 0
-config.TRAIN.END_EPOCH = 50
+config.TRAIN.END_EPOCH = 10
 
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 32
+config.TRAIN.BATCH_SIZE = 8
 config.TRAIN.SHUFFLE = True
 
 # testing
 config.TEST = edict()
 
 # size of images for each device
-config.TEST.BATCH_SIZE = 64
+config.TEST.BATCH_SIZE = 8
 # Test Model Epoch
 config.TEST.FLIP_TEST = False
 config.TEST.POST_PROCESS = True
@@ -116,6 +117,7 @@ config.TEST.BBOX_THRE = 1.0
 config.TEST.MODEL_FILE = ''
 config.TEST.IMAGE_THRE = 0.0
 config.TEST.NMS_THRE = 1.0
+config.TEST.SHUFFLE = True
 
 # debug
 config.DEBUG = edict()

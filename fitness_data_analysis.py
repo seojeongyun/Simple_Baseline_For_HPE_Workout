@@ -22,7 +22,7 @@ if __name__ == '__main__':
         if 'json' not in path: #'furniture' in path or 'new' in path
             label_path.append(base_path + '/' + path)
 
-    for fitness_type_idx, _ in enumerate(tqdm(label_path, desc="collect every json file in workout directory  ")):
+    for fitness_type_idx, _ in enumerate(tqdm(label_path, desc="collect every json files in workout directory  ")):
         for _, num in enumerate(os.listdir(label_path[fitness_type_idx])):
             path = os.path.join(label_path[fitness_type_idx] + '/' + num)
             path = path + '/' + os.listdir(path)[0]
