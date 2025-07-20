@@ -18,7 +18,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--gpus', help='gpus', type=str)
     parser.add_argument('--workers', help='num of dataloader workers', type=int)
 
-    3
+
     parser.add_argument('--data-path', default='/storage/jysuh/coco2017/coco/images/valid2017', type=str, help='path of dataset')
     parser.add_argument('--conf-file', default='./configs/workout.yaml', type=str, help='experiments description file')
     # parser.add_argument('--conf-file', default='./configs/face/yolov6l_finetune.py', type=str,

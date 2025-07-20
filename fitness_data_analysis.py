@@ -106,7 +106,7 @@ if __name__ == '__main__':
                             # data_dict[img_path]['joints_vis'] = joints_vis
                             # del data_dict[img_path]['pts']
 
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/valid.json', 'w', encoding='utf-8') as f:
+    with open('/json_files/valid.json', 'w', encoding='utf-8') as f:
         json.dump(data_dict, f, ensure_ascii=False, indent=4)
     # ===== ===== ===== =====
 
@@ -200,7 +200,7 @@ for _, exer_name in enumerate(tqdm(description_anal.keys(), desc="make json file
             for idx_str in idx_all:
                 description_exer_desc[exer_name][key_value].append((value_only, description_anal[exer_name][0][idx][idx_str]))
 
-with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/feedback_model_label.json', 'w', encoding='utf-8') as f:
+with open('/json_files/feedback_model_label.json', 'w', encoding='utf-8') as f:
     json.dump(description_exer_desc, f, ensure_ascii=False, indent=4)
 
 
