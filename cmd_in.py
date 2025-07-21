@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
 
 
 def get_args_parser(add_help=True):
-    parser = argparse.ArgumentParser(description='YOLOv6 PyTorch Training', add_help=add_help)
+    parser = argparse.ArgumentParser(description='HPE Workout Training', add_help=add_help)
 
     #
     parser.add_argument('--frequent',  help='frequency of logging', default=config.PRINT_FREQ, type=int)

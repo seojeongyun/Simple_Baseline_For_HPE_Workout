@@ -29,7 +29,7 @@ def create_logger(cfg, cfg_name, phase='train'):
     dataset = cfg.DATASET.DATASET + '_' + cfg.DATASET.HYBRID_JOINTS_TYPE \
         if cfg.DATASET.HYBRID_JOINTS_TYPE else cfg.DATASET.DATASET
     dataset = dataset.replace(':', '_')
-    model, _ = get_model_name(cfg)
+    model, full_name = get_model_name(cfg)
     cfg_name = os.path.basename(cfg_name).split('.')[0]
 
     final_output_dir = root_output_dir / dataset / model / cfg_name

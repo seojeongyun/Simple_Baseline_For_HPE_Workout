@@ -52,7 +52,7 @@ def main():
     reset_config(config, args)
 
     logger, final_output_dir, tb_log_dir = create_logger(
-        config, args.conf_file.split('/')[2], 'train')
+        cfg=config, cfg_name=args.conf_file.split('/')[2], phase='train')
 
     logger.info(pprint.pformat(args))
     logger.info(pprint.pformat(config))

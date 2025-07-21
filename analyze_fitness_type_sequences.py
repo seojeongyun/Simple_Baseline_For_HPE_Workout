@@ -95,6 +95,9 @@ if __name__ == '__main__':
             #               .
             # view5 --> end --> list(A sequence path)
 
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences.json', 'w') as f:
+        json.dump(exercise_dict, f)
+
     print(str(1))
 
     for k, v in check_sequences_dict.items():

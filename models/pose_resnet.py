@@ -160,10 +160,10 @@ class PoseResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer1 = self._make_layer(block=block, planes=64, blocks=layers[0])
+        self.layer2 = self._make_layer(block=block, planes=128, blocks=layers[1], stride=2)
+        self.layer3 = self._make_layer(block=block, planes=256, blocks=layers[2], stride=2)
+        self.layer4 = self._make_layer(block=block, planes=512, blocks=layers[3], stride=2)
 
         # used for deconv layers
         self.deconv_layers = self._make_deconv_layer(
