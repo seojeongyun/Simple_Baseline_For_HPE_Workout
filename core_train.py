@@ -69,7 +69,7 @@ def main():
     # copy model file
     this_dir = os.path.dirname(__file__)
     shutil.copy2(
-        os.path.join(this_dir, 'models', config.MODEL.NAME + '.py'),
+        os.path.join(this_dir, 'models', config.MODEL.NAME + '.py'),    # pose_resnet.py copy to final_output_dir
         final_output_dir)
 
     writer_dict = {
@@ -83,9 +83,10 @@ def main():
                              config.MODEL.IMAGE_SIZE[1],
                              config.MODEL.IMAGE_SIZE[0]))
     writer_dict['writer'].add_graph(model, (dump_input, ), verbose=False)
+    # To make calculation graph in the tensorboard, dump_input is forwarding.
 
     gpus = [int(i) for i in config.GPUS.split(',')]
-    model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+    model = torch.nn.DataParallel(model, device_ids=gpus).cuda() # To use multi gpus / gpus = [0, 1]
 
     # define loss function (criterion) and optimizer
     criterion = JointsMSELoss(

@@ -160,9 +160,9 @@ class JointsDataset(Dataset):
     def __getitem__(self, idx):
         # db_rec = copy.deepcopy(self.db[idx])
         # db_rec.keys() = ['image', 'center', 'scale', 'joints_3d', 'joints_3d_vis', 'filename', 'imgnum']
-        image_file = self.key[idx]
+        image_file = self.key[idx]      # self.key has a lot of image paths
 
-        if self.data_format == 'zip':
+        if self.data_format == 'zip':       # in this case, data_format is jpg
             from utils import zipreader
             data_numpy = zipreader.imread(
                 image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)

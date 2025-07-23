@@ -30,7 +30,7 @@ def create_logger(cfg, cfg_name, phase='train'):
         if cfg.DATASET.HYBRID_JOINTS_TYPE else cfg.DATASET.DATASET
     dataset = dataset.replace(':', '_')
     model, full_name = get_model_name(cfg)
-    cfg_name = os.path.basename(cfg_name).split('.')[0]
+    cfg_name = os.path.basename(cfg_name).split('.')[0]     # cfg_name is workout from workout.yaml, yaml is removed.
 
     final_output_dir = root_output_dir / dataset / model / cfg_name
 
