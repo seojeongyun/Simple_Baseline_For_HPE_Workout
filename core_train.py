@@ -109,13 +109,15 @@ def main():
                          root=config.DATASET.ROOT,
                          image_set=config.DATASET.TRAIN_SET,
                          is_train=True,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]),
+                         is_get_sequences=False)
 
     valid_dataset = JointsDataset(cfg=config,
                          root=config.DATASET.ROOT,
                          image_set=config.DATASET.TEST_SET,
                          is_train=False,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]),
+                        is_get_sequences=True)
 
 
     train_loader = torch.utils.data.DataLoader(

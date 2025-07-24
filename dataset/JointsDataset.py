@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class JointsDataset(Dataset):
-    def __init__(self, cfg, root, image_set, is_train, transform=None):
+    def __init__(self, cfg, root, image_set, is_train, transform=None, is_get_sequences=False):
         self.cfg = cfg
         self.num_joints = 24
         self.pixel_std = 200
@@ -41,6 +41,7 @@ class JointsDataset(Dataset):
         self.is_train = is_train
         self.root = root
         self.image_set = image_set                  # whether the dataset is train or validation
+        self.is_get_sequences = is_get_sequences
 
         self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
@@ -127,8 +128,9 @@ class JointsDataset(Dataset):
                             data_dict[img_path]['joints_vis'] = joints_vis
 
         return data_dict
+
     def get_db(self):
-        if self.image_set == 'train':
+        if self.image_set == 'train' and self.is_get_sequences == False:
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r') as f:
                 db = json.load(f)
 
@@ -140,16 +142,34 @@ class JointsDataset(Dataset):
             return dict_key_list, db
 
         elif self.image_set == 'validation':
-            with open(self.cfg.DATASET.VALID_SET_PATH, 'r') as f:
-                db = json.load(f)
+            if not self.is_get_sequences:
+                with open(self.cfg.DATASET.VALID_SET_PATH, 'r') as f:
+                    db = json.load(f)
 
-            dict_key_list = []
+                dict_key_list = []
 
-            for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json")):
-                dict_key_list.append(key)
+                for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json")):
+                    dict_key_list.append(key)
 
-            return dict_key_list, db
+                return dict_key_list, db
 
+            elif self.is_get_sequences:
+                with open(self.cfg.DATASET.GET_SEQUENCES_SET_PATH, 'r') as f:
+                    db = json.load(f)
+
+                dict_key_list = []
+                for what_exer, _ in db.items():
+                    for what_view, _ in db[what_exer].items():
+                        for seq_num, _ in db[what_exer][what_view]:
+                            for img_path in db[what_exer][what_view][seq_num]:
+                                dict_key_list.append(img_path)
+
+                # delete exer type lower than thershold
+                # threshold = 500
+                # for what_exer, _ in db.items():
+                #     if(len(db[what_exer]['view1'].keys()) < threshold):
+                #         del db[what_exer]
+                #     print("{} : {}".format(what_exer, len(db[what_exer]['view1'].keys()))
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError
