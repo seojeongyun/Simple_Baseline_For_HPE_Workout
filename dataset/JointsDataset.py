@@ -169,6 +169,7 @@ class JointsDataset(Dataset):
         else:
             data_numpy = cv2.imread(
                 image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        # data_numpy shape : [1080, 1920, 3]
 
         if data_numpy is None:
             logger.error('=> fail to read {}'.format(image_file))
@@ -178,6 +179,7 @@ class JointsDataset(Dataset):
         #
         joints = np.array(self.db[image_file]['joints'])
         joints[:,0], joints[:,1] = joints[:,0] / w * self.cfg.MODEL.IMAGE_SIZE[0], joints[:,1] / h * self.cfg.MODEL.IMAGE_SIZE[0]
+        # normalize to cfg.MODEL.IMAGE_SIZE == 1080 to 1024
         #
         data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
         data_numpy = cv2.resize(data_numpy, (self.cfg.MODEL.IMAGE_SIZE[0], self.cfg.MODEL.IMAGE_SIZE[1]))
@@ -308,6 +310,7 @@ class JointsDataset(Dataset):
                 g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * self.sigma ** 2))
 
                 # Usable gaussian range
+                # g_x and g_y is translated to tuple.
                 g_x = max(0, -ul[0]), min(br[0], self.heatmap_size[0]) - ul[0]
                 g_y = max(0, -ul[1]), min(br[1], self.heatmap_size[1]) - ul[1]
                 # Image range
@@ -329,5 +332,4 @@ class JointsDataset(Dataset):
         # plt.matshow(target[4])
 
 if __name__ == '__main__':
-    JointsDataset
     print("fuck you")
