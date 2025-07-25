@@ -60,8 +60,13 @@ if __name__ == '__main__':
         with open(json_file , 'r') as f:
             data = json.load(f)
 
+            del data['type_info']['key']
+            del data['type_info']['type']
+            del data['type_info']['pose']
+
             # -*-*-* For Debug *-*-*-
             exercise = data['type_info']['exercise']
+            del data['type_info']['exercise']
             check_sequences_dict.setdefault(exercise, {})
             check_sequences_dict[exercise].setdefault('sequences', [])
             check_sequences_dict[exercise]['sequences'].append(len(data['frames']))
@@ -71,13 +76,15 @@ if __name__ == '__main__':
 
             exercise_dict.setdefault(exercise, {})
             for num_view in range(1, 6):
-                exercise_dict[exercise].setdefault(f'view{num_view}', {})
-                exercise_dict[exercise][f'view{num_view}'].setdefault(str(counter[exercise]), [])
+                exercise_dict[exercise].setdefault(str(counter[exercise]), {})
+                exercise_dict[exercise][str(counter[exercise])].setdefault(f'view{num_view}', {})
+            exercise_dict[exercise][str(counter[exercise])].setdefault('type_info', data['type_info'])
 
-
-            for frame in range(len(data['frames'])):
-                for num_view in range(1, 6):
-                    exercise_dict[exercise][f'view{num_view}'][str(counter[exercise])].append(data['frames'][frame][f'view{num_view}']['img_key'])
+            for num_view in range(1, 6):
+                sequence_list = []
+                for frame in range(len(data['frames'])):
+                    sequence_list.append(data['frames'][frame][f'view{num_view}']['img_key'])
+                exercise_dict[exercise][str(counter[exercise])][f'view{num_view}'].setdefault('img_path', sequence_list)
 
             # view1 --> 1 --> list(A sequence path)
             #           2 --> list(A sequence path)
@@ -91,7 +98,7 @@ if __name__ == '__main__':
             #               .
             # view5 --> end --> list(A sequence path)
 
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences.json', 'w') as f:
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json', 'w') as f:
         json.dump(exercise_dict, f)
 
     print(str(1))

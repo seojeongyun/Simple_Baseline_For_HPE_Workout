@@ -156,10 +156,11 @@ class JointsDataset(Dataset):
             elif self.is_get_sequences:
                 with open(self.cfg.DATASET.GET_SEQUENCES_SET_PATH, 'r') as f:
                     db = json.load(f)
-
+                    # exercise_dict['오버 헤드 프레스']['4']['view1']['img_path']
+                    # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
                 dict_key_list = []
-                for what_exer, _ in db.items():
-                    for what_view, _ in db[what_exer].items():
+                for what_exer in db.keys():
+                    for what_view in db[what_exer].keys():
                         for seq_num, _ in db[what_exer][what_view]:
                             for img_path in db[what_exer][what_view][seq_num]:
                                 dict_key_list.append(img_path)
