@@ -57,8 +57,10 @@ config.LOSS.USE_TARGET_WEIGHT = True
 
 # DATASET related params
 config.DATASET = edict()
-config.DATASET.ROOT_LABEL = '/storage/jysuh/fitness/fitness/train/label'
-config.DATASET.ROOT_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
+config.DATASET.ROOT_TRAIN_LABEL = '/storage/jysuh/fitness/fitness/train/label'
+config.DATASET.ROOT_TRAIN_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
+# config.DATASET.ROOT_VALID_LABEL = '/storage/jysuh/fitness/fitness/validation/label'
+# config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/label'
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 config.DATASET.TRAIN_SET_PATH= './json_files/train.json'

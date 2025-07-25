@@ -61,24 +61,45 @@ class JointsDataset(Dataset):
         self.key, self.db = self.get_db()
 
     def get_json_files(self):
-        label_path = []
-        json_list = []
+        if self.is_train:
+            json_list_train = []  # 34468
 
-        for path in os.listdir(self.cfg.DATASET.ROOT_LABEL):
-            if 'json' not in path and 'furniture' in path or 'new' in path:
-                label_path.append(self.cfg.DATASET.ROOT_LABEL + '/' + path)
+            # *-*-*-*-*-*- Collect json files from train dataset *-*-*-*-*-*-
+            for equipment_type_idx, _ in enumerate(os.listdir(self.cfg.DATASET.ROOT_LABEL)):
+                if 'json' not in os.listdir(self.cfg.DATASET.ROOT_LABEL)[equipment_type_idx] and 'new' not in os.listdir(self.cfg.DATASET.ROOT_LABEL)[
+                    equipment_type_idx]:
+                    equipment_type_path = self.cfg.DATASET.ROOT_LABEL + '/' + os.listdir(self.cfg.DATASET.ROOT_LABEL)[equipment_type_idx]
+                    for dir_idx in range(len(os.listdir(equipment_type_path))):
+                        dir_path = equipment_type_path + '/' + os.listdir(equipment_type_path)[dir_idx]
+                        for idx in range(len(os.listdir(dir_path))):
+                            day_path = dir_path + '/' + os.listdir(dir_path)[idx]
 
-        for fitness_type_idx, _ in enumerate(tqdm(label_path, desc="collect every json file in json_list  ")):
-            for _, num in enumerate(os.listdir(label_path[fitness_type_idx])):
-                path = os.path.join(label_path[fitness_type_idx] + '/' + num)
-                path = path + '/' + os.listdir(path)[0]
-                json_files = glob.glob(path + '/' + '*.json')
-                for _, json_file in enumerate(json_files):
-                    if '3d' not in (json_file):
-                        json_list.append(json_file)
+                        for _, json_files in enumerate(os.listdir(day_path)):
+                            if '3d' not in json_files:
+                                json_list_train.append(day_path + '/' + json_files)
 
-        return json_list
+            return json_list_train
 
+        else:
+            json_list_valid = []
+            # *-*-*-*-*-*- Collect json files from validation dataset *-*-*-*-*-*-
+            base_path = '/storage/jysuh/fitness/fitness/validation/label'
+            assert os.path.exists(base_path)
+
+            json_list_valid = []  # 3139
+            json_list_train = []  # 34468
+            # total number of json files is 37670
+
+            for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
+                path = base_path + '/' + os.listdir(base_path)[equipment_type_idx]
+                for idx in range(len(os.listdir(path))):
+                    path = path + '/' + os.listdir(path)[idx]
+                    for idx in range(len(os.listdir(path))):
+                        path = path + '/' + os.listdir(path)[idx]
+                for _, json_files in enumerate(os.listdir(path)):
+                    if '3d' not in json_files:
+                        json_list_valid.append(path + '/' + json_files)
+            # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
     def make_db(self):
         # data_dict = {'pts' : [] ,
         #              'img_path' : [],
@@ -134,36 +155,41 @@ class JointsDataset(Dataset):
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r') as f:
                 db = json.load(f)
 
-            dict_key_list = []
+            img_path_list = []
 
             for _, key in enumerate(tqdm(db.keys(), desc="get train data from train.json")):
-                dict_key_list.append(key)
+                img_path_list.append(key)
 
-            return dict_key_list, db
+            return img_path_list, db
 
         elif self.image_set == 'validation':
             if not self.is_get_sequences:
                 with open(self.cfg.DATASET.VALID_SET_PATH, 'r') as f:
                     db = json.load(f)
 
-                dict_key_list = []
+                img_path_list = []
 
                 for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json")):
-                    dict_key_list.append(key)
+                    img_path_list.append(key)
 
-                return dict_key_list, db
+                return img_path_list, db
 
             elif self.is_get_sequences:
                 with open(self.cfg.DATASET.GET_SEQUENCES_SET_PATH, 'r') as f:
                     db = json.load(f)
                     # exercise_dict['오버 헤드 프레스']['4']['view1']['img_path']
                     # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
-                dict_key_list = []
+
+                img_path_list = []
+
                 for what_exer in db.keys():
-                    for what_view in db[what_exer].keys():
-                        for seq_num, _ in db[what_exer][what_view]:
-                            for img_path in db[what_exer][what_view][seq_num]:
-                                dict_key_list.append(img_path)
+                    for seq_num in db[what_exer].keys():
+                        for what_view in db[what_exer][seq_num].keys():
+                            if 'view' in what_view:
+                                for img_path in db[what_exer][seq_num][what_view]['img_path']:
+                                    img_path_list.append(img_path)
+
+                return img_path_list, db
 
                 # delete exer type lower than thershold
                 # threshold = 500
@@ -176,7 +202,7 @@ class JointsDataset(Dataset):
         raise NotImplementedError
 
     def __len__(self,):
-        return len(self.db)
+        return len(self.key)
 
     def __getitem__(self, idx):
         # db_rec = copy.deepcopy(self.db[idx])
