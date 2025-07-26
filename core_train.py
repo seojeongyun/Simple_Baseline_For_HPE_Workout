@@ -31,6 +31,7 @@ from config.config import get_model_name
 from models.loss import JointsMSELoss
 from utils.function import train
 from utils.function import validate
+from utils.function import get_sequences
 from utils.utils import get_optimizer
 from utils.utils import save_checkpoint
 from utils.utils import create_logger
@@ -104,34 +105,34 @@ def main():
                                      std=[0.229, 0.224, 0.225])
 
     from dataset.JointsDataset import JointsDataset
+    if config.TASK == 'train':
+        train_dataset = JointsDataset(cfg=config,
+                             root=config.DATASET.ROOT,
+                             image_set=config.DATASET.TRAIN_SET,
+                             is_train=True,
+                             transform=transforms.Compose([transforms.ToTensor(), normalize]),
+                             is_get_sequences=config.DATASET.IS_GET_SEQUENCES)
 
-    train_dataset = JointsDataset(cfg=config,
-                         root=config.DATASET.ROOT,
-                         image_set=config.DATASET.TRAIN_SET,
-                         is_train=True,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]),
-                         is_get_sequences=False)
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=config.TRAIN.BATCH_SIZE * len(gpus),
+            shuffle=config.TRAIN.SHUFFLE,
+            num_workers=config.WORKERS,
+            pin_memory=True
+        )
+
 
     valid_dataset = JointsDataset(cfg=config,
-                         root=config.DATASET.ROOT,
+                         root=config.DATASET.ROOT_VALID_LABEL,
                          image_set=config.DATASET.TEST_SET,
                          is_train=False,
                          transform=transforms.Compose([transforms.ToTensor(), normalize]),
-                        is_get_sequences=True)
-
-
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=config.TRAIN.BATCH_SIZE*len(gpus),
-        shuffle=config.TRAIN.SHUFFLE,
-        num_workers=config.WORKERS,
-        pin_memory=True
-    )
+                         is_get_sequences=config.DATASET.IS_GET_SEQUENCES)
 
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
-        batch_size=config.TEST.BATCH_SIZE*len(gpus),
-        shuffle=config.TEST.SHUFFLE,
+        batch_size=config.TEST.BATCH_SIZE*len(gpus) if not config.DATASET.IS_GET_SEQUENCES else 1,
+        shuffle=config.TEST.SHUFFLE if not config.DATASET.IS_GET_SEQUENCES else False,
         num_workers=config.WORKERS,
         pin_memory=True
     )
@@ -139,69 +140,52 @@ def main():
     best_perf = 0.0
     val_acc = 0.0
     best_model = False
-    for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
-        acc_list = []
-        # train for one epoch
+    if config.TASK == 'train':
+        for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
+            acc_list = []
+            # train for one epoch
+            train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+                                 final_output_dir, tb_log_dir, writer_dict, acc_list)
 
-        train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-                             final_output_dir, tb_log_dir, writer_dict, acc_list)
+            # if perf_indicator > best_perf:
+            #     best_perf = perf_indicator
+            #     best_model = True
+            # else:
+            #     best_model = False
 
-        # val_acc_list = train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-        #     final_output_dir, tb_log_dir, writer_dict, acc_list)
+            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+            # save_checkpoint({
+            #     'epoch': epoch + 1,
+            #     'model': get_model_name(config),
+            #     'state_dict': model.state_dict(),
+            #     'perf': perf_indicator,
+            #     'optimizer': optimizer.state_dict(),
+            # }, best_model, final_output_dir)
 
-        # for i in range(len(val_acc_list)):
-        #     val_acc += val_acc_list[i]
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'model': get_model_name(config),
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+            }, best_model, final_output_dir)
 
-        # msg = 'Epoch: [{0}]\t' \
-        #       'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-        #     epoch, acc=val_acc/len(val_acc_list))
-        # logger.info(msg)
+            lr_scheduler.step()
+        #
+        final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
+                                              'final_state.pth.tar')
 
-        # if writer_dict:
-        #     writer = writer_dict['writer']
-        #     global_steps = writer_dict['valid_global_steps']
-        #     writer.add_scalar('valid/acc_for_one_epoch', val_acc/len(val_acc_list), global_steps)
+        logger.info('saving final model state to {}'.format(
+            final_model_state_file))
 
-        # evaluate on validation set
-        # perf_indicator = validate(config, valid_loader, valid_dataset, model,
-        #                           criterion, epoch, final_output_dir, tb_log_dir,
-        #                           writer_dict)
+        torch.save(model.module.state_dict(), final_model_state_file)
 
-        # if perf_indicator > best_perf:
-        #     best_perf = perf_indicator
-        #     best_model = True
-        # else:
-        #     best_model = False
+        writer_dict['writer'].close()
 
-        logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-        # save_checkpoint({
-        #     'epoch': epoch + 1,
-        #     'model': get_model_name(config),
-        #     'state_dict': model.state_dict(),
-        #     'perf': perf_indicator,
-        #     'optimizer': optimizer.state_dict(),
-        # }, best_model, final_output_dir)
+    elif config.TASK == 'test' and config.DATASET.IS_GET_SEQUENCES:
+        get_sequences(config, valid_loader, model)
 
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'model': get_model_name(config),
-            'state_dict': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-        }, best_model, final_output_dir)
-
-        lr_scheduler.step()
-    #
-    final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
-                                          'final_state.pth.tar')
-
-    logger.info('saving final model state to {}'.format(
-        final_model_state_file))
-
-    torch.save(model.module.state_dict(), final_model_state_file)
-
-    writer_dict['writer'].close()
-
-
+    else:
+        raise ValueError("{} is wrong task.".format(config.TASK))
 if __name__ == '__main__':
     from setproctitle import *
     setproctitle('Simple_Baseline : Workout [1024, 1024]')

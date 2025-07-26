@@ -17,6 +17,7 @@ config.DATA_DIR = ''
 config.GPUS = '0'
 config.WORKERS = 4
 config.PRINT_FREQ = 20
+config.TASK = 'test' # or 'test'
 
 # Cudnn related params
 config.CUDNN = edict()
@@ -57,21 +58,22 @@ config.LOSS.USE_TARGET_WEIGHT = True
 
 # DATASET related params
 config.DATASET = edict()
-config.DATASET.ROOT_TRAIN_LABEL = '/storage/jysuh/fitness/fitness/train/label'
-config.DATASET.ROOT_TRAIN_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
-# config.DATASET.ROOT_VALID_LABEL = '/storage/jysuh/fitness/fitness/validation/label'
-# config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/label'
+config.DATASET.ROOT_LABEL = '/storage/jysuh/fitness/fitness/train/label'
+config.DATASET.ROOT_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
+config.DATASET.ROOT_VALID_LABEL = '/storage/jysuh/fitness/fitness/validation/label'
+config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/image'
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
 config.DATASET.VALID_SET_PATH= './json_files/valid.json'
-config.DATASET.GET_SEQUENCES_SET_PATH = './json_files/frame_sequences.json'
+config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 config.DATASET.TRAIN_SET = 'train'
 config.DATASET.TEST_SET = 'validation'
 # config.DATASET.TRAIN_SET = 'valid2017'
 config.DATASET.DATA_FORMAT = 'jpg'
 config.DATASET.HYBRID_JOINTS_TYPE = ''
 config.DATASET.SELECT_DATA = False
+config.DATASET.IS_GET_SEQUENCES = True
 
 # training data augmentation
 config.DATASET.FLIP = True
@@ -120,7 +122,7 @@ config.TEST.BBOX_THRE = 1.0
 config.TEST.MODEL_FILE = ''
 config.TEST.IMAGE_THRE = 0.0
 config.TEST.NMS_THRE = 1.0
-config.TEST.SHUFFLE = True
+config.TEST.SHUFFLE = False
 
 # debug
 config.DEBUG = edict()

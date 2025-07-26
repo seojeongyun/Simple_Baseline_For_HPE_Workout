@@ -93,14 +93,14 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         if i % (config.PRINT_FREQ * 3) == 0:
             acc_val = validate(config=config, val_loader=valid_loader, model=model,
                      criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
-                     writer_dict=writer_dict)
+                     writer_dict=writer_dict, is_get_sequences=config.DATASET.IS_GET_SEQUENCES)
 
             acc_list.append(acc_val)
 
     return acc_list
 
 def validate(config, val_loader, model, criterion, epoch, output_dir,
-             tb_log_dir, writer_dict=None):
+             tb_log_dir, writer_dict=None, is_get_sequences=False):
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
@@ -115,12 +115,10 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             # compute output
             output = model(input)
 
-            target = target.cuda(non_blocking=True)
-            target_weight = target_weight.cuda(non_blocking=True)
-
             loss = criterion(output, target, target_weight)
 
             num_images = input.size(0)
+
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
             _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
@@ -171,8 +169,28 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 writer.add_scalar('valid/loss', losses.avg, global_steps)
                 writer.add_scalar('valid/acc', acc.avg, global_steps)
 
-            break
-    return acc
+            # break
+        return acc
+
+
+
+def get_sequences(config, val_loader, model):
+    with torch.no_grad():
+        for i, (input, condition, image_file) in enumerate(val_loader):
+            max_coords = []
+            img_paths = []
+            # compute output
+            output = model(input)
+            output = output.squeeze(0)
+
+            img_paths.append(image_file)
+
+            for a_joint in range(len(output.shape[1])):
+                heatmap = output[a_joint]  # shape: (256, 256)
+                idx = torch.argmax(heatmap)  # ???? ???
+                y, x = torch.div(idx, heatmap.shape[1], rounding_mode='floor'), idx % heatmap.shape[1]
+                max_coords.append((x.item(), y.item()))  # (x, y)? ??
+
 
 
 

@@ -59,6 +59,11 @@ if __name__ == '__main__':
     for json_file in tqdm(json_files_list, desc='Analyzing JSON Files...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
+            #
+            parts = json_file.split('/')
+            del parts[7]
+            parts[6] = 'image'
+            target_path = '/'.join(parts[:8])
 
             del data['type_info']['key']
             del data['type_info']['type']
@@ -83,7 +88,7 @@ if __name__ == '__main__':
             for num_view in range(1, 6):
                 sequence_list = []
                 for frame in range(len(data['frames'])):
-                    sequence_list.append(data['frames'][frame][f'view{num_view}']['img_key'])
+                    sequence_list.append(os.path.join(target_path, data['frames'][frame][f'view{num_view}']['img_key']))
                 exercise_dict[exercise][str(counter[exercise])][f'view{num_view}'].setdefault('img_path', sequence_list)
 
             # view1 --> 1 --> list(A sequence path)
