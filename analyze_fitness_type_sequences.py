@@ -56,6 +56,18 @@ if __name__ == '__main__':
     total = 0  # debug
     # -*-*-*-*-*-*-*-*-*-*-*-*-*-
 
+    for json_file in tqdm(json_files_list, desc='Removing Missing Value Files...', leave=True):
+        with open(json_file , 'r') as f:
+            data = json.load(f)
+            if len(data['frames']) == 0:
+                json_files_list.remove(json_file)
+
+            # if len(data['frames']) != 16:
+                # if len(data['frames']) != 0:
+                #     print("Debug")
+                # elif len(data['frames']) == 0:
+                #     json_files_list.remove(json_file)
+
     for json_file in tqdm(json_files_list, desc='Analyzing JSON Files...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
@@ -71,7 +83,6 @@ if __name__ == '__main__':
 
             # -*-*-* For Debug *-*-*-
             exercise = data['type_info']['exercise']
-            del data['type_info']['exercise']
             check_sequences_dict.setdefault(exercise, {})
             check_sequences_dict[exercise].setdefault('sequences', [])
             check_sequences_dict[exercise]['sequences'].append(len(data['frames']))
@@ -102,6 +113,14 @@ if __name__ == '__main__':
             #               .
             #               .
             # view5 --> end --> list(A sequence path)
+    # Debug
+    # for what_exer in exercise_dict.keys():
+    #     for seq_num in exercise_dict[what_exer].keys():
+    #         for view_num in exercise_dict[what_exer][seq_num].keys():
+    #             if 'view' in view_num:
+    #                 if len(exercise_dict[what_exer][seq_num][view_num]['img_path']) != 16:
+    #                     print(
+    #                         f"what_exer: {what_exer}, seq_num: {seq_num}, view_num: {view_num}, num_frames: {len(exercise_dict[what_exer][seq_num][view_num]['img_path'])}")
 
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json', 'w') as f:
         json.dump(exercise_dict, f)
@@ -115,3 +134,14 @@ if __name__ == '__main__':
     for k,v in exercise_dict.items():
         for num_view in range(1, 6):
             total += len(exercise_dict[k][f'view{num_view}'].key())
+
+    A = 0
+
+    for what_exer in exercise_dict.keys():
+        for seq_num in exercise_dict[what_exer].keys():
+            for view_num in exercise_dict[what_exer][seq_num].keys():
+                if 'view' in view_num:
+                    if len(exercise_dict[what_exer][seq_num][view_num]['img_path']) != 16:
+                        print(f"what_exer: {what_exer}, seq_num: {seq_num}, view_num: {view_num}, num_frames: {len(exercise_dict[what_exer][seq_num][view_num]['img_path'])}")
+
+    print(A)

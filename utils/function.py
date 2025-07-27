@@ -16,6 +16,7 @@ import cv2
 import numpy as np
 import torch
 
+from collections import defaultdict
 from config.config import get_model_name
 from core.evaluate import accuracy
 from core.inference import get_final_preds
@@ -176,21 +177,29 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
 def get_sequences(config, val_loader, model):
     with torch.no_grad():
-        for i, (input, condition, image_file) in enumerate(val_loader):
-            max_coords = []
+        for i, (input, condition, image_file, video_idx) in enumerate(val_loader):
+            exercise = condition['exercise']
+            sequence = []
             img_paths = []
+            sequences_data_to_tf = {}
+            #
             # compute output
             output = model(input)
             output = output.squeeze(0)
-
+            #
+            #
             img_paths.append(image_file)
-
+            #
             for a_joint in range(len(output.shape[1])):
                 heatmap = output[a_joint]  # shape: (256, 256)
                 idx = torch.argmax(heatmap)  # ???? ???
-                y, x = torch.div(idx, heatmap.shape[1], rounding_mode='floor'), idx % heatmap.shape[1]
-                max_coords.append((x.item(), y.item()))  # (x, y)? ??
+                sequence.append(idx)
+                # y, x = torch.div(idx, heatmap.shape[1], rounding_mode='floor'), idx % heatmap.shape[1]
+                # max_coords.append((x.item(), y.item()))  # (x, y)? ??
 
+            counter = defaultdict(int)
+            counter[exercise] += 1
+            sequences_data_to_tf.setdefault(str(counter[exercise],))
 
 
 

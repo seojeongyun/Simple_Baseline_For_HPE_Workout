@@ -58,7 +58,7 @@ class JointsDataset(Dataset):
         self.transform = transform
 
         if self.image_set == 'validation' and self.is_get_sequences:
-            self.img_paths, self.workout_conditions, self.db = self.get_db()
+            self.img_paths, self.workout_conditions, self.video_idx_list, self.db = self.get_db()
         else:
             self.img_paths, self.db = self.get_db()
 
@@ -94,16 +94,17 @@ class JointsDataset(Dataset):
 
                 img_path_list = []
                 workout_condition_list = []
-
+                video_idx_list = []
                 for what_exer in tqdm(db.keys(), desc="get sequence data"):
-                    for seq_num in db[what_exer].keys():
-                        for what_view in db[what_exer][seq_num].keys():
+                    for video_idx in db[what_exer].keys():
+                        for what_view in db[what_exer][video_idx].keys():
                             if 'view' in what_view:
-                                for img_path in db[what_exer][seq_num][what_view]['img_path']:
+                                for img_path in db[what_exer][video_idx][what_view]['img_path']:
                                     img_path_list.append(img_path)
-                                    workout_condition_list.append(db[what_exer][seq_num]['type_info'])
+                                    workout_condition_list.append(db[what_exer][video_idx]['type_info'])
+                                    video_idx_list.append(int(video_idx))
 
-                return img_path_list, workout_condition_list, db
+                return img_path_list, workout_condition_list, video_idx_list, db
 
                 # delete exer type lower than thershold
                 # threshold = 500
@@ -122,7 +123,9 @@ class JointsDataset(Dataset):
         image_file = self.img_paths[idx]      # self.key has a lot of image paths
 
         if self.image_set == 'validation' and self.is_get_sequences:
-            condition = self.workout_conditions[idx]
+            condition = self.db[idx]
+            video_idx = self.video_idx_list[idx]
+
 
         if self.data_format == 'zip':       # in this case, data_format is jpg
             from utils import zipreader
@@ -162,7 +165,7 @@ class JointsDataset(Dataset):
         data_numpy = torch.from_numpy(data_numpy).float()
 
         if self.image_set == 'validation' and self.is_get_sequences:
-            return data_numpy, condition, image_file
+            return data_numpy, condition, image_file, video_idx
         else:
             return data_numpy, target, target_weight, meta
 
