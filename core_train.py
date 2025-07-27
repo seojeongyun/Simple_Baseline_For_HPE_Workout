@@ -12,6 +12,7 @@ import argparse
 import os
 import pprint
 import shutil
+import json
 
 import torch
 import torch.nn.parallel
@@ -105,7 +106,7 @@ def main():
                                      std=[0.229, 0.224, 0.225])
 
     from dataset.JointsDataset import JointsDataset
-    if config.TASK == 'train':
+    if config.TASK in ['train', 'validation'] and not config.DATASET.IS_GET_SEQUENCES:
         train_dataset = JointsDataset(cfg=config,
                              root=config.DATASET.ROOT,
                              image_set=config.DATASET.TRAIN_SET,
@@ -182,7 +183,9 @@ def main():
         writer_dict['writer'].close()
 
     elif config.TASK == 'test' and config.DATASET.IS_GET_SEQUENCES:
-        get_sequences(config, valid_loader, model)
+        sequences_data_to_tf = get_sequences(config, valid_loader, model)
+        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/sequences_data_to_tf.json','w') as f:
+            json.dump(sequences_data_to_tf, f)
 
     else:
         raise ValueError("{} is wrong task.".format(config.TASK))

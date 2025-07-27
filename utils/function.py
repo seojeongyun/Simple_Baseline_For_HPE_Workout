@@ -16,6 +16,7 @@ import cv2
 import numpy as np
 import torch
 
+from tqdm import tqdm
 from collections import defaultdict
 from config.config import get_model_name
 from core.evaluate import accuracy
@@ -177,30 +178,32 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
 def get_sequences(config, val_loader, model):
     with torch.no_grad():
-        for i, (input, condition, image_file, video_idx) in enumerate(val_loader):
-            exercise = condition['exercise']
-            sequence = []
+        for i, (input, condition, image_file, video_idx, view_idx) in enumerate(tqdm(val_loader, desc="RUNNING...", total=len(val_loader))):
+            exercise = condition['exercise'][0]
+            joints_val = []
             img_paths = []
             sequences_data_to_tf = {}
             #
             # compute output
-            output = model(input)
+            output = model(input.to('cuda'))
             output = output.squeeze(0)
             #
             #
             img_paths.append(image_file)
             #
-            for a_joint in range(len(output.shape[1])):
-                heatmap = output[a_joint]  # shape: (256, 256)
+            for a_joint in range(output.shape[0]):
+                heatmap = output[a_joint].cpu().detach()  # shape: (256, 256)
                 idx = torch.argmax(heatmap)  # ???? ???
-                sequence.append(idx)
+                joints_val.append(idx)
                 # y, x = torch.div(idx, heatmap.shape[1], rounding_mode='floor'), idx % heatmap.shape[1]
                 # max_coords.append((x.item(), y.item()))  # (x, y)? ??
 
-            counter = defaultdict(int)
-            counter[exercise] += 1
-            sequences_data_to_tf.setdefault(str(counter[exercise],))
-
+            sequences_data_to_tf.setdefault(exercise, {})
+            sequences_data_to_tf[exercise].setdefault(video_idx[0], {})
+            sequences_data_to_tf[exercise][video_idx[0]].setdefault(view_idx[0], [])
+            sequences_data_to_tf[exercise][video_idx[0]][view_idx[0]].append(joints_val)
+            sequences_data_to_tf[exercise][video_idx[0]]['condition'] = condition
+    return sequences_data_to_tf
 
 
 def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):
