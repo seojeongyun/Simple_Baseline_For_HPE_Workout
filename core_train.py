@@ -191,5 +191,6 @@ def main():
         raise ValueError("{} is wrong task.".format(config.TASK))
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('Simple_Baseline : Workout [1024, 1024]')
+    # setproctitle('Simple_Baseline : Workout [1024, 1024]')
+    setproctitle('Generate Sequences information for transformer')
     main()

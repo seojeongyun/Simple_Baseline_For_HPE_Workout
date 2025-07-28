@@ -71,6 +71,20 @@ if __name__ == '__main__':
     for json_file in tqdm(json_files_list, desc='Analyzing JSON Files...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
+
+            # translate '313-2-1-15-Z99_A-' -> '313-2-1-15-Z99_A'
+            for frame_idx in range(len(data['frames'])):
+                for view_idx in data['frames'][frame_idx].keys():
+                    if '-/' in data['frames'][frame_idx][view_idx]['img_key']:
+                        dir_name, file_name = os.path.split(data['frames'][frame_idx][view_idx]['img_key'])
+
+                        dir_parts = dir_name.split('/')
+                        dir_parts[-1] = dir_parts[-1][:-1]  # ??? ???? '-' ??
+                        new_dir = '/'.join(dir_parts)
+
+                        # ??? ?? ?? ???
+                        new_path = os.path.join(new_dir, file_name)
+                        data['frames'][frame_idx][view_idx]['img_key'] = new_path
             #
             parts = json_file.split('/')
             del parts[7]
@@ -99,6 +113,7 @@ if __name__ == '__main__':
             for num_view in range(1, 6):
                 sequence_list = []
                 for frame in range(len(data['frames'])):
+                    # if data['frames'][frame][f'view{num_view}']['img_key'] == ''
                     sequence_list.append(os.path.join(target_path, data['frames'][frame][f'view{num_view}']['img_key']))
                 exercise_dict[exercise][str(counter[exercise])][f'view{num_view}'].setdefault('img_path', sequence_list)
 
