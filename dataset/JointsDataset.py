@@ -109,7 +109,7 @@ class JointsDataset(Dataset):
 
                 return img_path_list, workout_condition_list, video_idx_list, view_idx_list, db
 
-                # delete exer type lower than thershold
+                # delete exer type lower than threshold
                 # threshold = 500
                 # for what_exer, _ in db.items():
                 #     if(len(db[what_exer]['view1'].keys()) < threshold):

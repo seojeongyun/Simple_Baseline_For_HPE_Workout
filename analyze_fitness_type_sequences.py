@@ -26,22 +26,38 @@ if __name__ == '__main__':
     # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
     #
     #
-    #
+    # ========= For Debug ==========
+    # equipment_type_list = []
+    # bd_list = []
+    # furniture_list = []
+    # body_list = []
+    # body_idx_dict = {}
+    # counter = defaultdict(int)
     # *-*-*-*-*-*- Collect json files from train dataset *-*-*-*-*-*-
     base_path = '/storage/jysuh/fitness/fitness/train/label'
 
     for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
         if 'json' not in os.listdir(base_path)[equipment_type_idx] and 'new' not in os.listdir(base_path)[equipment_type_idx]:
-            equipment_type_path = base_path + '/' + os.listdir(base_path)[equipment_type_idx]
-            for dir_idx in range(len(os.listdir(equipment_type_path))):
-                dir_path = equipment_type_path + '/' + os.listdir(equipment_type_path)[dir_idx]
-                for idx in range(len(os.listdir(dir_path))):
-                    day_path = dir_path + '/' + os.listdir(dir_path)[idx]
+            # equipment_type_list.append(os.listdir(base_path)[equipment_type_idx]) # DB
+            equipment_type_path = '/'.join([base_path, os.listdir(base_path)[equipment_type_idx]])
+            for equipment_idx in range(len(os.listdir(equipment_type_path))):
+                equipment_path = '/'.join([equipment_type_path, os.listdir(equipment_type_path)[equipment_idx]])
+                for idx in range(len(os.listdir(equipment_path))):
+                    day_path = '/'.join([equipment_path, os.listdir(equipment_path)[idx]])
 
                 for _, json_files in enumerate(os.listdir(day_path)):
                     if '3d' not in json_files:
+                        # if os.listdir(base_path)[equipment_type_idx] == 'barbell_dumbbell_Labeling':    # DB
+                        #     bd_list.append(day_path + '/' + json_files) # DB
+                        # elif os.listdir(base_path)[equipment_type_idx] == 'furniture_Labeling': # DB
+                        #     furniture_list.append(day_path + '/' + json_files) # DB
+                        # elif os.listdir(base_path)[equipment_type_idx] == 'body_Labeling': # DB
+                        #     counter[day_path.split('/')[8]] += 1
+                        #     body_list.append(day_path + '/' + json_files)   # DB
                         json_list_train.append(day_path + '/' + json_files)
     # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+    # for k, v in counter.items():
+    #     print(f'{k} : {v}')
     #
     #
     #
@@ -56,33 +72,90 @@ if __name__ == '__main__':
     total = 0  # debug
     # -*-*-*-*-*-*-*-*-*-*-*-*-*-
 
-    for json_file in tqdm(json_files_list, desc='Removing Missing Value Files...', leave=True):
-        with open(json_file , 'r') as f:
-            data = json.load(f)
-            if len(data['frames']) == 0:
-                json_files_list.remove(json_file)
+    # if "/storage/jysuh/fitness/fitness/train/label/body_Labeling/body_01/Day05_200925_F/D05-6-040.json" in json_files_list:
+    #     print(1)
+    # 2081
+    # furniture 4262
+    # body      15461
+    # barbell   14745
+    refined_json_files_list = []
+    # =====================================================================================================================================
+    # for json_file in tqdm(json_files_list, desc='Removing Missing Value Files...', leave=True):
+    #     with open(json_file , 'r') as f:
+    #         data = json.load(f)
+    #         load_next_json_file = False
+    #         # if json_file == "/storage/jysuh/fitness/fitness/train/label/body_Labeling/body_01/Day05_200925_F/D05-6-040.json":
+    #         #     print(1)
+    #         #
+    #         parts = json_file.split('/')
+    #         # parts: ['', 'storage', 'jysuh', 'fitness', 'fitness', 'train', 'image', 'barbell_dumbbell_Labeling', 'babel_13', 'Day42_201116_F', 'D42-7-682.json']
+    #         #
+    #         del parts[7]
+    #         # parts[7] = 'barbell_dumbbell_Labeling'
+    #         #
+    #         parts[6] = 'image'
+    #         target_path = '/'.join(parts[:8])
+    #         # target_path = '/storage/jysuh/fitness/fitness/train/image/babel_13'
+    #         #
+    #
+    #         if len(data['frames']) == 0:
+    #             continue
+    #         #
+    #         # Are there all img_paths ?
+    #         for view_idx in range(1, 6):
+    #             for frame_idx in range(len(data['frames'])):
+    #                 if json_file in json_files_list:
+    #                     img_path = os.path.join(target_path, data['frames'][frame_idx][f'view{view_idx}']['img_key'])
+    #                     if '-/' in data['frames'][frame_idx][f'view{view_idx}']['img_key']:
+    #                         # translate '313-2-1-15-Z99_A-' -> '313-2-1-15-Z99_A'
+    #                         dir_name, file_name = os.path.split(data['frames'][frame_idx][f'view{view_idx}']['img_key'])
+    #
+    #                         dir_parts = dir_name.split('/')
+    #                         dir_parts[-1] = dir_parts[-1][:-1]
+    #                         new_dir = '/'.join(dir_parts)
+    #
+    #                         new_path = os.path.join(new_dir, file_name)
+    #                         new_path = os.path.join(target_path, new_path)
+    #                         if not os.path.exists(new_path):
+    #                             load_next_json_file = True
+    #                             break
+    #
+    #                     elif not os.path.exists(img_path):
+    #                         load_next_json_file = True
+    #                         break
+    #
+    #             if load_next_json_file:
+    #                 break
+    #
+    #     if not load_next_json_file:
+    #         refined_json_files_list.append(json_file)
+    #
+    # with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info_debug.json','w') as f:
+    #     json.dump(refined_json_files_list, f)
+    # =====================================================================================================================================
 
             # if len(data['frames']) != 16:
                 # if len(data['frames']) != 0:
                 #     print("Debug")
                 # elif len(data['frames']) == 0:
                 #     json_files_list.remove(json_file)
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info_debug.json', 'r') as f:
+        json_files_list = json.load(f)
 
     for json_file in tqdm(json_files_list, desc='Analyzing JSON Files...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
 
-            # translate '313-2-1-15-Z99_A-' -> '313-2-1-15-Z99_A'
+            # convert '313-2-1-15-Z99_A-' -> '313-2-1-15-Z99_A'
             for frame_idx in range(len(data['frames'])):
                 for view_idx in data['frames'][frame_idx].keys():
                     if '-/' in data['frames'][frame_idx][view_idx]['img_key']:
                         dir_name, file_name = os.path.split(data['frames'][frame_idx][view_idx]['img_key'])
 
                         dir_parts = dir_name.split('/')
-                        dir_parts[-1] = dir_parts[-1][:-1]  # ??? ???? '-' ??
+                        dir_parts[-1] = dir_parts[-1][:-1]
                         new_dir = '/'.join(dir_parts)
 
-                        # ??? ?? ?? ???
                         new_path = os.path.join(new_dir, file_name)
                         data['frames'][frame_idx][view_idx]['img_key'] = new_path
             #
@@ -113,7 +186,8 @@ if __name__ == '__main__':
             for num_view in range(1, 6):
                 sequence_list = []
                 for frame in range(len(data['frames'])):
-                    # if data['frames'][frame][f'view{num_view}']['img_key'] == ''
+                    if 'Day05_200925_F/6/A/040-1-1-02-Z22_A/040-1-1-02-Z22_A-0000001.jpg' == data['frames'][frame][f'view{num_view}']['img_key']:
+                        print(1)
                     sequence_list.append(os.path.join(target_path, data['frames'][frame][f'view{num_view}']['img_key']))
                 exercise_dict[exercise][str(counter[exercise])][f'view{num_view}'].setdefault('img_path', sequence_list)
 
@@ -139,6 +213,7 @@ if __name__ == '__main__':
 
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json', 'w') as f:
         json.dump(exercise_dict, f)
+
 
     print(str(1))
 
