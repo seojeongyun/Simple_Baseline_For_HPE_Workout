@@ -142,9 +142,13 @@ if __name__ == '__main__':
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info_debug.json', 'r') as f:
         json_files_list = json.load(f)
 
+    max_frame = 0
     for json_file in tqdm(json_files_list, desc='Analyzing JSON Files...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
+
+            if max_frame < len(data['frames']):
+                max_frame = len(data['frames'])
 
             # convert '313-2-1-15-Z99_A-' -> '313-2-1-15-Z99_A'
             for frame_idx in range(len(data['frames'])):
@@ -210,7 +214,9 @@ if __name__ == '__main__':
     #                 if len(exercise_dict[what_exer][seq_num][view_num]['img_path']) != 16:
     #                     print(
     #                         f"what_exer: {what_exer}, seq_num: {seq_num}, view_num: {view_num}, num_frames: {len(exercise_dict[what_exer][seq_num][view_num]['img_path'])}")
-
+    #
+    exercise_dict['max_frame'] = max_frame
+    #
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json', 'w') as f:
         json.dump(exercise_dict, f)
 

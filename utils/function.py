@@ -178,7 +178,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
 def get_sequences(config, val_loader, model):
     with torch.no_grad():
-        for i, (input, condition, image_file, video_idx, view_idx) in enumerate(tqdm(val_loader, desc="RUNNING...", total=len(val_loader))):
+        for i, (input, condition, image_file, video_idx, view_idx, max_frame) in enumerate(tqdm(val_loader, desc="RUNNING...", total=len(val_loader))):
             exercise = condition['exercise'][0]
             joints_val = []
             img_paths = []
@@ -203,6 +203,7 @@ def get_sequences(config, val_loader, model):
             sequences_data_to_tf[exercise][video_idx[0]].setdefault(view_idx[0], [])
             sequences_data_to_tf[exercise][video_idx[0]][view_idx[0]].append(joints_val)
             sequences_data_to_tf[exercise][video_idx[0]]['condition'] = condition
+        sequences_data_to_tf['max_frame'] = max_frame
     return sequences_data_to_tf
 
 
