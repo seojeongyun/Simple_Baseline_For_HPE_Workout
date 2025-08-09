@@ -30,17 +30,17 @@ def write_tbimg(config, tblogger, imgs, step, type='train'):
         for idx, img in enumerate(imgs[0]):
             cnt += 1
             if cnt % config.TRAIN.BATCH_SIZE == 0:
-                tblogger.add_image(f'train/img_result', imgs[0][idx], step + 1, dataformats='CHW')
-                tblogger.add_image(f'train/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
-                tblogger.add_image(f'train/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'train_val_visualization/img_result', imgs[0][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'train_val_visualization/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'train_val_visualization/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
 
     elif type == 'validation':
         for idx, img in enumerate(imgs[0]):
             cnt += 1
             if cnt % config.TEST.BATCH_SIZE == 0:
-                tblogger.add_image(f'val/img_result', imgs[0][idx], step + 1, dataformats='CHW')
-                tblogger.add_image(f'val/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
-                tblogger.add_image(f'val/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'val_visualization/img_result', imgs[0][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'val_val_visualization/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'val_val_visualization/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
 
     else:
         print(f'Invalid type: "{type}". Cannot log images to TensorBoard.')
