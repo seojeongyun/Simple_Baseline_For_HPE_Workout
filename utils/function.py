@@ -24,6 +24,7 @@ from core.inference import get_final_preds
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
 from utils.events import NCOLS, load_yaml, write_tbimg
+from torch.cuda.amp import autocast, GradScaler
 
 logger = logging.getLogger(__name__)
 
@@ -36,24 +37,34 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     acc = AverageMeter()
 
     end = time.time()
+    scaler = GradScaler()
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # switch to train mode
         model.train()
 
+        #
+        optimizer.zero_grad(set_to_none=True)
+
+        #
+        input = input.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
+        target_weight = target_weight.cuda(non_blocking=True)
         # measure data loading time
         data_time.update(time.time() - end)
 
         # compute output
-        output = model(input.cuda(non_blocking=True))
-        target = target.cuda(non_blocking=True)
-        target_weight = target_weight.cuda(non_blocking=True)
+        with autocast():
+            output = model(input.cuda(non_blocking=True))
+            loss = criterion(output, target, target_weight)
 
-        loss = criterion(output, target, target_weight)
+        ## compute gradient and do update step
+        # loss.backward()
+        # optimizer.step()
 
-        # compute gradient and do update step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        #
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
