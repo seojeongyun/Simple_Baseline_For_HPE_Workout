@@ -26,7 +26,7 @@ DEBUG:
   SAVE_BATCH_IMAGES_PRED: false
   SAVE_HEATMAPS_GT: false
   SAVE_HEATMAPS_PRED: false
-GPUS: 0,1
+GPUS: '1'
 LOG_DIR: ''
 LOSS:
   USE_TARGET_WEIGHT: true
@@ -63,14 +63,14 @@ MODEL:
   IMAGE_SIZE:
   - 1024
   - 1024
-  INIT_WEIGHTS: true
+  INIT_WEIGHTS: false
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: null
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar
   STYLE: pytorch
 OUTPUT_DIR: ./result
 PRINT_FREQ: 50
-TASK: train
+TASK: validation
 TEST:
   BATCH_SIZE: 4
   BBOX_THRE: 1.0
@@ -86,7 +86,7 @@ TEST:
   SHUFFLE: true
   USE_GT_BBOX: false
 TRAIN:
-  BATCH_SIZE: 12
+  BATCH_SIZE: 8
   BEGIN_EPOCH: 0
   CHECKPOINT: ''
   END_EPOCH: 10
@@ -102,5 +102,6 @@ TRAIN:
   OPTIMIZER: adam
   RESUME: false
   SHUFFLE: true
+  USE_AMP: false
   WD: 0.0001
 WORKERS: 4

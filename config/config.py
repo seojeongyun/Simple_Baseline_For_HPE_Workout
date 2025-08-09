@@ -14,10 +14,10 @@ config = edict()
 config.OUTPUT_DIR = './result'
 config.LOG_DIR = ''
 config.DATA_DIR = ''
-config.GPUS = '0,1'
+config.GPUS ='1'          # '0,1'
 config.WORKERS = 4
 config.PRINT_FREQ = 50
-config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
+config.TASK = 'validation' # ['train', 'validation', 'get_sequences_for_tf']
 config.CONFIG_FILE_PATH = './configs/workout.yaml'
 
 # Cudnn related params
@@ -45,8 +45,9 @@ MODEL_EXTRAS = {
 # common params for NETWORK
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
-config.MODEL.INIT_WEIGHTS = True
-config.MODEL.PRETRAINED = None
+config.MODEL.INIT_WEIGHTS = False   # True / False
+config.MODEL.PRETRAINED = True      # path
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth__.tar'
 config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [1024, 1024]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]

@@ -37,53 +37,40 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     acc = AverageMeter()
 
     end = time.time()
-    if use_amp:
-        use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
-        amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
-        scaler = None if use_bf16 else torch.cuda.amp.GradScaler()
+    use_bf16 = use_amp and torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+    amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
+    scaler = None if (not use_amp or use_bf16) else GradScaler()
 
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
+        # measure data loading time
+        data_time.update(time.time() - end)
+
         # switch to train mode
         model.train()
-
-        #
-        optimizer.zero_grad()
-
         #
         input = input.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
 
-        # measure data loading time
-        data_time.update(time.time() - end)
-
         # compute output
-        if use_amp:
-            with torch.cuda.amp.autocast(dtype=amp_dtype):
-                output = model(input.cuda(non_blocking=True))
-                loss = criterion(output.float(), target, target_weight)
+        # --- forward: toggle autocast on/off based on use_amp ---
+        with autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp):
+            output = model(input)
 
-        else:
-            output = model(input.cuda(non_blocking=True))
-            loss = criterion(output.float(), target, target_weight)
-        ## compute gradient and do update step
-        # loss.backward()
-        # optimizer.step()
+        # --- compute loss in FP32 for stable convergence ---
+        loss = criterion(output.float(), target, target_weight)
 
-        #
-        if use_amp and torch.cuda.is_bf16_supported():  # USE AUTOCAST AND BF16
-            loss.backward()
-            optimizer.step()
-
-        elif use_amp and not torch.cuda.is_bf16_supported():    # USE ONLY AUTOCAST
+        # --- backward + optimizer step ---
+        # FP16 AMP path (requires GradScaler)
+        if use_amp and not use_bf16:
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
 
-        else:   # NOT USE AUTOCAST AND BF16
+        # BF16 AMP or plain FP32 path
+        else:
             loss.backward()
             optimizer.step()
-
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
 
@@ -115,7 +102,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
 
             result, ori, hm = plot_train_batch(config, input, output)
             train_result = [result, ori, hm]
-            write_tbimg(writer_dict['writer'], imgs=train_result, step=epoch, type='train')
+            write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             save_debug_images(config, input, meta, target, pred*4, output,
@@ -133,6 +120,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
 def validate(config, val_loader, model, criterion, epoch, output_dir,
              tb_log_dir, writer_dict=None, is_training=False):
     batch_time = AverageMeter()
+    data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
     seen = 0
@@ -141,17 +129,26 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
     model.eval()
 
     idx = 0
+    end = time.time()
     with torch.no_grad():
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
+            # measure data loading time
+            data_time.update(time.time() - end)
+            #
+            input = input.cuda(1, non_blocking=True)
+            target = target.cuda(1, non_blocking=True)
+            target_weight = target_weight.cuda(1, non_blocking=True)
+
             # early stop condition
             max_val_images = 20 if is_training else None
             if max_val_images is not None and seen >= max_val_images:
                 break
-            # compute output
-            output = model(input.cuda(non_blocking=True))
 
-            loss = criterion(output, target.cuda(non_blocking=True), target_weight.cuda(non_blocking=True))
+            # compute output
+            output = model(input)
+
+            loss = criterion(output, target, target_weight)
 
             num_images = input.size(0)
             seen += num_images
@@ -182,33 +179,60 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             # all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
             # all_boxes[idx:idx + num_images, 5] = score
 
-
+            #####
             if i % config.PRINT_FREQ == 0:
-                msg = 'Test: [{0}/{1}]\t' \
-                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+                msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                      'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                      'Speed {speed:.1f} samples/s\t' \
+                      'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                      'Loss {loss.val:.5f} ({loss.avg:.5f})\t' \
                       'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                          i, len(val_loader), batch_time=batch_time,
-                          loss=losses, acc=acc)
+                    1, i, len(val_loader), batch_time=batch_time,
+                    speed=input.size(0) / batch_time.val,
+                    data_time=data_time, loss=losses, acc=acc)
                 logger.info(msg)
 
-                prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
+                writer = writer_dict['writer']
+                global_steps = writer_dict['train_global_steps']
+                writer.add_scalar('val/loss', losses.val, global_steps)
+                writer.add_scalar('val/acc', acc.val, global_steps)
+                writer_dict['train_global_steps'] = global_steps + 1
 
                 result, ori, hm = plot_train_batch(config, input, output)
                 valid_result = [result, ori, hm]
-                epoch = i if is_training else epoch
+                write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
 
-                write_tbimg(writer_dict['writer'], imgs=valid_result, step=epoch, type='val')
-                save_debug_images(config, input, meta, target, pred*4, output,
+                prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
+                save_debug_images(config, input, meta, target, pred * 4, output,
                                   prefix)
 
-            if writer_dict:
-                writer = writer_dict['writer']
-                global_steps = writer_dict['valid_global_steps']
-                # writer.add_scalar('valid/loss', losses.avg, global_steps)
-                # writer.add_scalar('valid/acc', acc.avg, global_steps)
-                writer.add_scalar('valid/loss', losses.avg, global_step=epoch)
-                writer.add_scalar('valid/acc', acc.avg, global_step=epoch)
+                ####
+            # if i % config.PRINT_FREQ == 0:
+            #     msg = 'Test: [{0}/{1}]\t' \
+            #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+            #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+            #           'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+            #               i, len(val_loader), batch_time=batch_time,
+            #               loss=losses, acc=acc)
+            #     logger.info(msg)
+            #
+            #     prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
+            #
+            #     result, ori, hm = plot_train_batch(config, input, output)
+            #     valid_result = [result, ori, hm]
+            #     epoch = i if is_training else epoch
+            #
+            #     write_tbimg(writer_dict['writer'], imgs=valid_result, step=epoch, type='val')
+            #     save_debug_images(config, input, meta, target, pred*4, output,
+            #                       prefix)
+            #
+            # if writer_dict:
+            #     writer = writer_dict['writer']
+            #     global_steps = writer_dict['valid_global_steps']
+            #     # writer.add_scalar('valid/loss', losses.avg, global_steps)
+            #     # writer.add_scalar('valid/acc', acc.avg, global_steps)
+            #     writer.add_scalar('valid/loss', losses.avg, global_step=epoch)
+            #     writer.add_scalar('valid/acc', acc.avg, global_step=epoch)
 
             # break
         return acc

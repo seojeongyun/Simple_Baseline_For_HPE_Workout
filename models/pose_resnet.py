@@ -260,7 +260,7 @@ class PoseResNet(nn.Module):
             # pretrained_state_dict = torch.load(pretrained)
             logger.info('=> loading pretrained models {}'.format(pretrained))
             # self.load_state_dict(pretrained_state_dict, strict=False)
-            checkpoint = torch.load(pretrained)
+            checkpoint = torch.load(pretrained, map_location='cpu')
             final_module_bias = list(checkpoint.keys())[-1]
             final_module_weight = list(checkpoint.keys())[-2]
             del checkpoint[final_module_bias]
@@ -275,9 +275,9 @@ class PoseResNet(nn.Module):
                 if key.startswith('module.'):
                     # state_dict[key[7:]] = state_dict[key]
                     # state_dict.pop(key)
-                    state_dict[key[7:]] = state_dict_old[key]
+                    state_dict[key[7:]] = state_dict_old[key].cpu()
                 else:
-                    state_dict[key] = state_dict_old[key]
+                    state_dict[key] = state_dict_old[key].cpu()
             # else:
             #     raise RuntimeError(
             #         'No state_dict found in checkpoint file {}'.format(pretrained))

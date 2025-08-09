@@ -22,24 +22,25 @@ def save_yaml(data_dict, save_path):
         yaml.safe_dump(data_dict, f, sort_keys=False)
 
 
-def write_tbimg(tblogger, imgs, step, type='train'):
+def write_tbimg(config, tblogger, imgs, step, type='train'):
     cnt = 0
     """Display train_batch and validation predictions to tensorboard."""
     if type == 'train':
         # tblogger.add_image(f'train_batch', valid_img, step + 1, dataformats='HWC')
         for idx, img in enumerate(imgs[0]):
             cnt += 1
-            if cnt % 5 == 0:
+            if cnt % config.TRAIN.BATCH_SIZE == 0:
                 tblogger.add_image(f'train/img_result', imgs[0][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'train/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'train/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
-                cnt = 0
 
-    elif type == 'val':
+    elif type == 'validation':
         for idx, img in enumerate(imgs[0]):
             cnt += 1
-            if cnt % 5 == 0:
+            if cnt % config.TEST.BATCH_SIZE == 0:
                 tblogger.add_image(f'val/img_result', imgs[0][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'val/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'val/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
-                cnt = 0
+
+    else:
+        print(f'Invalid type: "{type}". Cannot log images to TensorBoard.')

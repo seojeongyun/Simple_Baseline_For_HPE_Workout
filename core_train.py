@@ -93,12 +93,14 @@ def main():
     # To make calculation graph in the tensorboard, dump_input is forwarding.
 
     gpus = [int(i) for i in config.GPUS.split(',')]
-    model = torch.nn.DataParallel(model, device_ids=gpus).cuda() # To use multi gpus / gpus = [0, 1]
+
+    # if you want to use DataParallel, .cuda() replace .cuda(1)
+    model = torch.nn.DataParallel(model, device_ids=gpus).cuda(1) # To use multi gpus / gpus = [0, 1]
 
     # define loss function (criterion) and optimizer
     criterion = JointsMSELoss(
         use_target_weight=config.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
+    ).cuda(1) # if you want to use DataParallel, .cuda() replace .cuda(1)
 
     optimizer = get_optimizer(config, model)
 
