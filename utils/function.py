@@ -44,7 +44,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         data_time.update(time.time() - end)
 
         # compute output
-        output = model(input.to('cuda'))
+        output = model(input.cuda(non_blocking=True))
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
 
@@ -92,20 +92,21 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
             save_debug_images(config, input, meta, target, pred*4, output,
                               prefix)
 
-        if i % (config.PRINT_FREQ * 3) == 0:
+        if i % (config.PRINT_FREQ * 10) == 0:
             acc_val = validate(config=config, val_loader=valid_loader, model=model,
                      criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
-                     writer_dict=writer_dict, is_get_sequences=config.DATASET.IS_GET_SEQUENCES)
+                     writer_dict=writer_dict, is_training=True)
 
             acc_list.append(acc_val)
 
     return acc_list
 
 def validate(config, val_loader, model, criterion, epoch, output_dir,
-             tb_log_dir, writer_dict=None, is_get_sequences=False):
+             tb_log_dir, writer_dict=None, is_training=False):
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
+    seen = 0
 
     # switch to evaluate mode
     model.eval()
@@ -114,12 +115,17 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
     with torch.no_grad():
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
+            # early stop condition
+            max_val_images = 20 if is_training else None
+            if max_val_images is not None and seen >= max_val_images:
+                break
             # compute output
-            output = model(input)
+            output = model(input.cuda(non_blocking=True))
 
-            loss = criterion(output, target, target_weight)
+            loss = criterion(output, target.cuda(non_blocking=True), target_weight.cuda(non_blocking=True))
 
             num_images = input.size(0)
+            seen += num_images
 
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
@@ -161,6 +167,8 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
                 result, ori, hm = plot_train_batch(config, input, output)
                 valid_result = [result, ori, hm]
+                epoch = i if is_training else epoch
+
                 write_tbimg(writer_dict['writer'], imgs=valid_result, step=epoch, type='val')
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
@@ -168,8 +176,10 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             if writer_dict:
                 writer = writer_dict['writer']
                 global_steps = writer_dict['valid_global_steps']
-                writer.add_scalar('valid/loss', losses.avg, global_steps)
-                writer.add_scalar('valid/acc', acc.avg, global_steps)
+                # writer.add_scalar('valid/loss', losses.avg, global_steps)
+                # writer.add_scalar('valid/acc', acc.avg, global_steps)
+                writer.add_scalar('valid/loss', losses.avg, global_step=epoch)
+                writer.add_scalar('valid/acc', acc.avg, global_step=epoch)
 
             # break
         return acc
@@ -186,17 +196,50 @@ def get_sequences(config, val_loader, model):
             #
             # compute output
             output = model(input.to('cuda'))
-            output = output.squeeze(0)
+            output = output.cpu().detach()
             #
             #
             img_paths.append(image_file)
             #
+            all = torch.zeros([output.shape[0], output.shape[2], output.shape[3]])
+
             for a_joint in range(output.shape[0]):
-                heatmap = output[a_joint].cpu().detach()  # shape: (256, 256)
-                idx = torch.argmax(heatmap)  # ???? ???
+                all += output[:, a_joint, :, :]
+                heatmap = output[:, a_joint, :, :]  # shape: (1, 256, 256)
+                idx = torch.argmax(heatmap)  #
                 joints_val.append(idx)
                 # y, x = torch.div(idx, heatmap.shape[1], rounding_mode='floor'), idx % heatmap.shape[1]
-                # max_coords.append((x.item(), y.item()))  # (x, y)? ??
+                # max_coords.append((x.item(), y.item()))  # (x, y)
+
+            from copy import deepcopy
+
+            all = all.numpy()
+
+            temp = []
+            for i in range(output.shape[0]):
+                max = all[i].max()
+                all[i] /= max
+                all[i] *= 255
+                temp.append(np.expand_dims(deepcopy(all[i]).astype(np.uint8), axis=0))
+
+            # zeros = np.zeros(all.shape)
+            # all = np.concatenate((all,zeros,zeros), axis=1)
+            gamma = 0.3
+
+            for i in range(output.shape[0]):
+                temp[i] = cv2.applyColorMap(temp[i].transpose(1, 2, 0), cv2.COLORMAP_JET).transpose(2, 0, 1)
+                temp[i] = np.stack([temp[i][2, :, :], temp[i][1, :, :], temp[i][0, :, :]], axis=0)
+            # result = input + gamma * np.stack(temp, axis=0)
+
+            import matplotlib.pyplot as plt
+
+            # heatmap: torch.Tensor ??, shape (256, 256)
+
+            plt.imshow(temp[0].transpose(1, 2, 0))  # 'hot' ?? 'jet', 'viridis'? ??
+            plt.colorbar()  # ?? ? ?? (? ?? ???)
+            plt.title(f"Joint Heatmap: {a_joint}")
+            plt.axis('off')  # ? ??
+            plt.show()
 
             sequences_data_to_tf.setdefault(exercise, {})
             sequences_data_to_tf[exercise].setdefault(video_idx[0], {})

@@ -31,17 +31,15 @@ logger = logging.getLogger(__name__)
 
 
 class JointsDataset(Dataset):
-    def __init__(self, cfg, root, image_set, is_train, transform=None, is_get_sequences=False):
+    def __init__(self, cfg, root, task, transform=None):
         self.cfg = cfg
         self.num_joints = 24
         self.pixel_std = 200
         self.flip_pairs = []
         self.parent_ids = []
 
-        self.is_train = is_train
-        self.root = root
-        self.image_set = image_set                  # whether the dataset is train or validation
-        self.is_get_sequences = is_get_sequences
+        self.task = task
+        self.root = root                 # whether the dataset is train or validation
 
         self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
@@ -57,65 +55,64 @@ class JointsDataset(Dataset):
 
         self.transform = transform
 
-        if self.image_set == 'validation' and self.is_get_sequences:
+        if self.task == 'get_sequences_for_tf':
             self.img_paths, self.workout_conditions, self.video_idx_list, self.view_idx_list, self.db, self.max_frame = self.get_db()
         else:
             self.img_paths, self.db = self.get_db()
 
     def get_db(self):
-        if self.image_set == 'train':
+        if self.task == 'train':
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r', encoding="utf-8") as f:
                 db = json.load(f)
 
             img_path_list = []
 
-            for _, key in enumerate(tqdm(db.keys(), desc="get train data from train.json")):
+            for _, key in enumerate(tqdm(db.keys(), desc="get train data from train.json", leave=True)):
                 img_path_list.append(key)
 
             return img_path_list, db
 
-        elif self.image_set == 'validation':
-            if not self.is_get_sequences:
-                with open(self.cfg.DATASET.VALID_SET_PATH, 'r', encoding="utf-8") as f:
-                    db = json.load(f)
+        elif self.task == 'validation':
+            with open(self.cfg.DATASET.VALID_SET_PATH, 'r', encoding="utf-8") as f:
+                db = json.load(f)
 
-                img_path_list = []
+            img_path_list = []
 
-                for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json")):
-                    img_path_list.append(key)
+            for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json", leave=True)):
+                img_path_list.append(key)
 
-                return img_path_list, db
+            return img_path_list, db
 
-            elif self.is_get_sequences:
-                with open(self.cfg.DATASET.GET_SEQUENCES_SET_PATH, 'r', encoding="utf-8") as f:
-                    db = json.load(f)
-                    # exercise_dict['오버 헤드 프레스']['4']['view1']['img_path']
-                    # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
-                max_frame = db['max_frame']
-                img_path_list = []
-                workout_condition_list = []
-                video_idx_list = []
-                view_idx_list = []
-                #
-                for what_exer in tqdm(db.keys(), desc="get sequence data"):
-                    if what_exer != 'max_frame':
-                        for video_idx in db[what_exer].keys():
-                            for view_idx in db[what_exer][video_idx].keys():
-                                if 'view' in view_idx:
-                                    for img_path in db[what_exer][video_idx][view_idx]['img_path']:
-                                        img_path_list.append(img_path)
-                                        workout_condition_list.append(db[what_exer][video_idx]['type_info'])
-                                        video_idx_list.append(video_idx)
-                                        view_idx_list.append(view_idx)
+        elif self.task == 'get_sequences_for_tf':
+            with open(self.cfg.DATASET.GET_SEQUENCES_SET_PATH, 'r', encoding="utf-8") as f:
+                db = json.load(f)
+                # exercise_dict['오버 헤드 프레스']['4']['view1']['img_path']
+                # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
+            max_frame = db['max_frame']
+            img_path_list = []
+            workout_condition_list = []
+            video_idx_list = []
+            view_idx_list = []
+            #
+            for what_exer in tqdm(db.keys(), desc="get sequence data", leave=True):
+                if what_exer != 'max_frame':
+                    for video_idx in db[what_exer].keys():
+                        for view_idx in db[what_exer][video_idx].keys():
+                            if 'view' in view_idx:
+                                for img_path in db[what_exer][video_idx][view_idx]['img_path']:
+                                    img_path_list.append(img_path)
+                                    workout_condition_list.append(db[what_exer][video_idx]['type_info'])
+                                    video_idx_list.append(video_idx)
+                                    view_idx_list.append(view_idx)
 
-                return img_path_list, workout_condition_list, video_idx_list, view_idx_list, db, max_frame
+            return img_path_list, workout_condition_list, video_idx_list, view_idx_list, db, max_frame
 
-                # delete exer type lower than threshold
-                # threshold = 500
-                # for what_exer, _ in db.items():
-                #     if(len(db[what_exer]['view1'].keys()) < threshold):
-                #         del db[what_exer]
-                #     print("{} : {}".format(what_exer, len(db[what_exer]['view1'].keys()))
+            # delete exer type lower than threshold
+            # threshold = 500
+            # for what_exer, _ in db.items():
+            #     if(len(db[what_exer]['view1'].keys()) < threshold):
+            #         del db[what_exer]
+            #     print("{} : {}".format(what_exer, len(db[what_exer]['view1'].keys()))
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError
@@ -126,7 +123,7 @@ class JointsDataset(Dataset):
     def __getitem__(self, idx):
         image_file = self.img_paths[idx]      # self.key has a lot of image paths
 
-        if self.image_set == 'validation' and self.is_get_sequences:
+        if self.task == 'get_sequences_for_tf':
             condition = self.workout_conditions[idx]
             video_idx = self.video_idx_list[idx]
             view_idx = self.view_idx_list[idx]
@@ -145,7 +142,7 @@ class JointsDataset(Dataset):
             logger.error('=> fail to read {}'.format(image_file))
             raise ValueError('Fail to read {}'.format(image_file))
 
-        if not self.is_get_sequences:
+        if self.task != 'get_sequences_for_tf':
             w, h = data_numpy.shape[1], data_numpy.shape[0]
             #
             joints = np.array(self.db[image_file]['joints'])
@@ -156,7 +153,7 @@ class JointsDataset(Dataset):
         data_numpy = cv2.resize(data_numpy, (self.cfg.MODEL.IMAGE_SIZE[0], self.cfg.MODEL.IMAGE_SIZE[1]))
         #
         data_numpy = data_numpy.transpose(2,0,1)
-        if not self.is_get_sequences:
+        if self.task != 'get_sequences_for_tf':
             target, target_weight = self.generate_target(joints)
             target = torch.from_numpy(target)
             target_weight = torch.from_numpy(target_weight)
@@ -169,7 +166,7 @@ class JointsDataset(Dataset):
         # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
         data_numpy = torch.from_numpy(data_numpy).float()
 
-        if self.image_set == 'validation' and self.is_get_sequences:
+        if self.task == 'get_sequences_for_tf':
             return data_numpy, condition, image_file, video_idx, view_idx, max_frame
         else:
             return data_numpy, target, target_weight, meta
@@ -270,4 +267,4 @@ class JointsDataset(Dataset):
         # plt.matshow(target[4])
 
 if __name__ == '__main__':
-    print("fuck you")
+    print("")

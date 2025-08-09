@@ -325,8 +325,12 @@ def get_pose_net(cfg, is_train, **kwargs):
 
     model = PoseResNet(block_class, layers, cfg, **kwargs)
 
-    if is_train and cfg.MODEL.INIT_WEIGHTS:
-        model.init_weights(cfg.MODEL.PRETRAINED)
+    if cfg.MODEL.INIT_WEIGHTS and not cfg.MODEL.PRETRAINED:
+        model.init_weights(pretrained = '')
+    elif cfg.MODEL.PRETRAINED and not cfg.MODEL.INIT_WEIGHTS:
+        model.init_weights(pretrained=cfg.MODEL.PRETRAINED)
+    else:
+        raise ValueError(f"Invalid configuration: INIT_WEIGHTS={cfg.MODEL.INIT_WEIGHTS}, PRETRAINED={cfg.MODEL.PRETRAINED}.")
 
     return model
 

@@ -22,9 +22,11 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import tensorboard
-from tensorboardX import SummaryWriter
-
+import yaml
 import _init_paths
+import torch.distributed as dist
+
+from tensorboardX import SummaryWriter
 from config.config import config
 from config.config import update_config
 from config.config import update_dir
@@ -36,27 +38,30 @@ from utils.function import get_sequences
 from utils.utils import get_optimizer
 from utils.utils import save_checkpoint
 from utils.utils import create_logger
-
+from easydict import EasyDict as edict
 from cmd_in import get_args_parser
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader, DistributedSampler
+
 import dataset
 import models
 
 
-def reset_config(config, args):
-    if args.gpus:
-        config.GPUS = args.gpus
-    if args.workers:
-        config.WORKERS = args.workers
+def gen_config(config_file):
+    cfg = dict(config)
+    for k, v in cfg.items():
+        if isinstance(v, edict):
+            cfg[k] = dict(v)
 
+    with open(config_file, 'w') as f:
+        yaml.dump(dict(cfg), f, default_flow_style=False)
 
 def main():
-    args = get_args_parser().parse_args()
-    reset_config(config, args)
+    gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/workout.yaml')
 
     logger, final_output_dir, tb_log_dir = create_logger(
-        cfg=config, cfg_name=args.conf_file.split('/')[2], phase='train')
+        cfg=config, cfg_name=config.CONFIG_FILE_PATH.split('/')[2], phase=config.TASK)
 
-    logger.info(pprint.pformat(args))
     logger.info(pprint.pformat(config))
 
     # cudnn related setting
@@ -106,13 +111,11 @@ def main():
                                      std=[0.229, 0.224, 0.225])
 
     from dataset.JointsDataset import JointsDataset
-    if config.TASK in ['train', 'validation'] and not config.DATASET.IS_GET_SEQUENCES:
+    if config.TASK == 'train':
         train_dataset = JointsDataset(cfg=config,
                              root=config.DATASET.ROOT,
-                             image_set=config.DATASET.TRAIN_SET,
-                             is_train=True,
-                             transform=transforms.Compose([transforms.ToTensor(), normalize]),
-                             is_get_sequences=config.DATASET.IS_GET_SEQUENCES)
+                             task=config.TASK,
+                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
@@ -122,18 +125,15 @@ def main():
             pin_memory=True
         )
 
-
     valid_dataset = JointsDataset(cfg=config,
                          root=config.DATASET.ROOT_VALID_LABEL,
-                         image_set=config.DATASET.TEST_SET,
-                         is_train=False,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]),
-                         is_get_sequences=config.DATASET.IS_GET_SEQUENCES)
+                         task='validation' if config.TASK == 'train' else config.TASK,
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
-        batch_size=config.TEST.BATCH_SIZE*len(gpus) if not config.DATASET.IS_GET_SEQUENCES else 1,
-        shuffle=config.TEST.SHUFFLE if not config.DATASET.IS_GET_SEQUENCES else False,
+        batch_size=config.TEST.BATCH_SIZE*len(gpus),
+        shuffle=config.TEST.SHUFFLE,
         num_workers=config.WORKERS,
         pin_memory=True
     )
@@ -182,15 +182,22 @@ def main():
 
         writer_dict['writer'].close()
 
-    elif config.TASK == 'test' and config.DATASET.IS_GET_SEQUENCES:
+    elif config.TASK == 'validation':
+        epoch = 0
+        acc = validate(config=config, val_loader=valid_loader, model=model,
+                     criterion=criterion, epoch=epoch, output_dir=final_output_dir, tb_log_dir=tb_log_dir,
+                     writer_dict=writer_dict, is_training=False)
+
+    elif config.TASK == 'get_sequences_for_tf':
         sequences_data_to_tf = get_sequences(config, valid_loader, model)
         with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/sequences_data_to_tf.json','w') as f:
             json.dump(sequences_data_to_tf, f)
 
     else:
         raise ValueError("{} is wrong task.".format(config.TASK))
+
 if __name__ == '__main__':
     from setproctitle import *
-    # setproctitle('Simple_Baseline : Workout [1024, 1024]')
-    setproctitle('Generate Sequences information for transformer')
+    setproctitle('Simple_Baseline : Workout [1024, 1024]')
+    # setproctitle('Generate Sequences information for transformer')
     main()

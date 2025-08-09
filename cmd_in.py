@@ -21,8 +21,6 @@ def get_args_parser(add_help=True):
 
     parser.add_argument('--data-path', default='/storage/jysuh/coco2017/coco/images/valid2017', type=str, help='path of dataset')
     parser.add_argument('--conf-file', default='./configs/workout.yaml', type=str, help='experiments description file')
-    # parser.add_argument('--conf-file', default='./configs/face/yolov6l_finetune.py', type=str,
-    #                     help='experiments description file')
     parser.add_argument('--img-size', default=360, type=int, help='train, val image size (pixels)')
     parser.add_argument('--batch-size', default=4, type=int, help='total batch size for all GPUs')
     parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')

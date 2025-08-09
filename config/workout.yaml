@@ -1,3 +1,4 @@
+CONFIG_FILE_PATH: ./configs/workout.yaml
 CUDNN:
   BENCHMARK: true
   DETERMINISTIC: false
@@ -6,17 +7,18 @@ DATASET:
   DATASET: workout
   DATA_FORMAT: jpg
   FLIP: true
+  GET_SEQUENCES_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json
   HYBRID_JOINTS_TYPE: ''
   ROOT: /storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json
   ROOT_IMAGE: /storage/jysuh/fitness/fitness/train/image
   ROOT_LABEL: /storage/jysuh/fitness/fitness/train/label
+  ROOT_VALID_IMAGE: /storage/jysuh/fitness/fitness/validation/image
+  ROOT_VALID_LABEL: /storage/jysuh/fitness/fitness/validation/label
   ROT_FACTOR: 30
   SCALE_FACTOR: 0.25
   SELECT_DATA: false
-  TEST_SET: validation
-  TRAIN_SET: train
-  TRAIN_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/train.json
-  VALID_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/valid.json
+  TRAIN_SET_PATH: ./json_files/train.json
+  VALID_SET_PATH: ./json_files/valid.json
 DATA_DIR: ''
 DEBUG:
   DEBUG: false
@@ -24,7 +26,7 @@ DEBUG:
   SAVE_BATCH_IMAGES_PRED: false
   SAVE_HEATMAPS_GT: false
   SAVE_HEATMAPS_PRED: false
-GPUS: '0'
+GPUS: 0,1
 LOG_DIR: ''
 LOSS:
   USE_TARGET_WEIGHT: true
@@ -64,12 +66,13 @@ MODEL:
   INIT_WEIGHTS: true
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar
+  PRETRAINED: null
   STYLE: pytorch
-OUTPUT_DIR: ''
-PRINT_FREQ: 20
+OUTPUT_DIR: ./result
+PRINT_FREQ: 50
+TASK: train
 TEST:
-  BATCH_SIZE: 8
+  BATCH_SIZE: 4
   BBOX_THRE: 1.0
   COCO_BBOX_FILE: /storage/jysuh/coco2017/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json
   FLIP_TEST: false
@@ -83,7 +86,7 @@ TEST:
   SHUFFLE: true
   USE_GT_BBOX: false
 TRAIN:
-  BATCH_SIZE: 8
+  BATCH_SIZE: 10
   BEGIN_EPOCH: 0
   CHECKPOINT: ''
   END_EPOCH: 10

@@ -11,13 +11,14 @@ from easydict import EasyDict as edict
 
 config = edict()
 
-config.OUTPUT_DIR = ''
+config.OUTPUT_DIR = './result'
 config.LOG_DIR = ''
 config.DATA_DIR = ''
-config.GPUS = '0'
+config.GPUS = '0,1'
 config.WORKERS = 4
-config.PRINT_FREQ = 20
-config.TASK = 'test' # or 'test'
+config.PRINT_FREQ = 50
+config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
+config.CONFIG_FILE_PATH = './configs/workout.yaml'
 
 # Cudnn related params
 config.CUDNN = edict()
@@ -45,8 +46,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = True
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
-#'/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth.tar'
+config.MODEL.PRETRAINED = None
 config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [1024, 1024]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
@@ -67,13 +67,10 @@ config.DATASET.DATASET = 'workout'
 config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
 config.DATASET.VALID_SET_PATH= './json_files/valid.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
-config.DATASET.TRAIN_SET = 'train'
-config.DATASET.TEST_SET = 'validation'
 # config.DATASET.TRAIN_SET = 'valid2017'
 config.DATASET.DATA_FORMAT = 'jpg'
 config.DATASET.HYBRID_JOINTS_TYPE = ''
 config.DATASET.SELECT_DATA = False
-config.DATASET.IS_GET_SEQUENCES = True
 
 # training data augmentation
 config.DATASET.FLIP = True
@@ -100,14 +97,14 @@ config.TRAIN.END_EPOCH = 10
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 8
+config.TRAIN.BATCH_SIZE = 10
 config.TRAIN.SHUFFLE = True
 
 # testing
 config.TEST = edict()
 
 # size of images for each device
-config.TEST.BATCH_SIZE = 8
+config.TEST.BATCH_SIZE = 4 if config.TASK != 'get_sequences_for_tf' else 1
 # Test Model Epoch
 config.TEST.FLIP_TEST = False
 config.TEST.POST_PROCESS = True
@@ -122,7 +119,7 @@ config.TEST.BBOX_THRE = 1.0
 config.TEST.MODEL_FILE = ''
 config.TEST.IMAGE_THRE = 0.0
 config.TEST.NMS_THRE = 1.0
-config.TEST.SHUFFLE = False
+config.TEST.SHUFFLE = True if config.TASK != 'get_sequences_for_tf' else False
 
 # debug
 config.DEBUG = edict()
