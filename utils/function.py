@@ -30,14 +30,18 @@ logger = logging.getLogger(__name__)
 
 
 def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-          output_dir, tb_log_dir, writer_dict, acc_list):
+          output_dir, tb_log_dir, writer_dict, acc_list, use_amp=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
 
     end = time.time()
-    scaler = GradScaler()
+    if use_amp:
+        use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+        amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
+        scaler = None if use_bf16 else torch.cuda.amp.GradScaler()
+
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # switch to train mode
         model.train()
@@ -49,22 +53,36 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         input = input.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
+
         # measure data loading time
         data_time.update(time.time() - end)
 
         # compute output
-        with autocast():
-            output = model(input.cuda(non_blocking=True))
-            loss = criterion(output, target, target_weight)
+        if use_amp:
+            with torch.cuda.amp.autocast(dtype=amp_dtype):
+                output = model(input.cuda(non_blocking=True))
+                loss = criterion(output.float(), target, target_weight)
 
+        else:
+            output = model(input.cuda(non_blocking=True))
+            loss = criterion(output.float(), target, target_weight)
         ## compute gradient and do update step
         # loss.backward()
         # optimizer.step()
 
         #
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+        if use_amp and torch.cuda.is_bf16_supported():  # USE AUTOCAST AND BF16
+            loss.backward()
+            optimizer.step()
+
+        elif use_amp and not torch.cuda.is_bf16_supported():    # USE ONLY AUTOCAST
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+        else:   # NOT USE AUTOCAST AND BF16
+            loss.backward()
+            optimizer.step()
 
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
@@ -198,6 +216,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
 
 def get_sequences(config, val_loader, model):
+    model.eval()
     with torch.no_grad():
         for i, (input, condition, image_file, video_idx, view_idx, max_frame) in enumerate(tqdm(val_loader, desc="RUNNING...", total=len(val_loader))):
             exercise = condition['exercise'][0]
@@ -205,13 +224,15 @@ def get_sequences(config, val_loader, model):
             img_paths = []
             sequences_data_to_tf = {}
             #
+            input = input.cuda()
             # compute output
-            output = model(input.to('cuda'))
+            output = model(input)
             output = output.cpu().detach()
             #
             #
             img_paths.append(image_file)
             #
+            # ================================================================================================================================
             all = torch.zeros([output.shape[0], output.shape[2], output.shape[3]])
 
             for a_joint in range(output.shape[0]):
@@ -251,6 +272,7 @@ def get_sequences(config, val_loader, model):
             plt.title(f"Joint Heatmap: {a_joint}")
             plt.axis('off')  # ? ??
             plt.show()
+            # ================================================================================================================================
 
             sequences_data_to_tf.setdefault(exercise, {})
             sequences_data_to_tf[exercise].setdefault(video_idx[0], {})

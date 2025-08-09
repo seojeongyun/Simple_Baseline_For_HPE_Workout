@@ -146,7 +146,7 @@ def main():
             acc_list = []
             # train for one epoch
             train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-                                 final_output_dir, tb_log_dir, writer_dict, acc_list)
+                                 final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.TRAIN.USE_AMP)
 
             # if perf_indicator > best_perf:
             #     best_perf = perf_indicator

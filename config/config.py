@@ -97,9 +97,9 @@ config.TRAIN.END_EPOCH = 10
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 10
+config.TRAIN.BATCH_SIZE = 8
 config.TRAIN.SHUFFLE = True
-
+config.TRAIN.USE_AMP = False
 # testing
 config.TEST = edict()
 
