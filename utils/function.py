@@ -47,7 +47,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         model.train()
 
         #
-        optimizer.zero_grad(set_to_none=True)
+        optimizer.zero_grad()
 
         #
         input = input.cuda(non_blocking=True)
