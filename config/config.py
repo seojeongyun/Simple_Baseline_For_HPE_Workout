@@ -19,7 +19,7 @@ config.WORKERS = 4
 config.PRINT_FREQ = 50
 config.TASK = 'validation' # ['train', 'validation', 'get_sequences_for_tf']
 config.CONFIG_FILE_PATH = './configs/workout.yaml'
-
+config.ACC_THR = 0.5
 # Cudnn related params
 config.CUDNN = edict()
 config.CUDNN.BENCHMARK = True

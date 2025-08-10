@@ -14,16 +14,20 @@ from core.inference import get_max_preds
 
 
 def calc_dists(preds, target, normalize):
-    preds = preds.astype(np.float32)
-    target = target.astype(np.float32)
-    dists = np.zeros((preds.shape[1], preds.shape[0])) # [17, 32]
-    for n in range(preds.shape[0]): # 32
-        for c in range(preds.shape[1]): # 17
-            if target[n, c, 0] > 1 and target[n, c, 1] > 1:
-                normed_preds = preds[n, c, :] / normalize[n]
-                normed_targets = target[n, c, :] / normalize[n]
+    preds = preds.astype(np.float32)    # the shape of pred is [BS, num_joints, 2] -> [BS, num_joints, (X,Y)]
+    target = target.astype(np.float32)  # the shape of pred is [BS, num_joints, 2] -> [BS, num_joints, (X,Y)]
+    dists = np.zeros((preds.shape[1], preds.shape[0])) # make zero array having shape of [num_joints, BS]
+    for n in range(preds.shape[0]): # BS
+        for c in range(preds.shape[1]): # num_joints
+            if target[n, c, 0] > 1 and target[n, c, 1] > 1:     # X > 1 , Y  > 1
+                normed_preds = preds[n, c, :] / normalize[n]    # normalize.shape : [BS, 2]  / there are BS [W/10, H/10].
+                normed_targets = target[n, c, :] / normalize[n] # normalize.shape : [BS, 2]  / there are BS [W/10, H/10].
                 dists[c, n] = np.linalg.norm(normed_preds - normed_targets)
                 # dists[c,n] -> the distance between two vector (preds and targets)
+
+                # Normalize to make distances independent of image size.
+                # Dividing by (W/10, H/10) converts coordinates to a scale relative to image dimensions,
+                # ensuring fair distance comparison across different image resolutions.
             else:
                 dists[c, n] = -1
     return dists
@@ -31,7 +35,7 @@ def calc_dists(preds, target, normalize):
 
 def dist_acc(dists, thr=0.5):
     ''' Return percentage below threshold while ignoring values with a -1 '''
-    dist_cal = np.not_equal(dists, -1) # 32 -> True or False
+    dist_cal = np.not_equal(dists, -1) # BS -> True or False
     num_dist_cal = dist_cal.sum()
     if num_dist_cal > 0:
         return np.less(dists[dist_cal], thr).sum() * 1.0 / num_dist_cal
@@ -50,24 +54,28 @@ def accuracy(output, target, hm_type='gaussian', thr=0.5):
     First value to be returned is average accuracy across 'idxs',
     followed by individual accuracies
     '''
-    # output.shape = [Batch, 17, 64, 64]
-    idx = list(range(output.shape[1]))
+    #
+    idx = list(range(output.shape[1]))          # output.shape = [Batch, 24, HM_H, HM_W]
     norm = 1.0
     if hm_type == 'gaussian':
-        pred, _ = get_max_preds(output) # the shape of pred is [Batch, 17, 2]
-        target, _ = get_max_preds(target)
-        h = output.shape[2] # 64
-        w = output.shape[3] # 64
-        norm = np.ones((pred.shape[0], 2)) * np.array([h, w]) / 10
+        pred, _ = get_max_preds(output) # the shape of pred is [BS, num_joints, 2] -> [BS, num_joints, (X,Y)]
+        target, _ = get_max_preds(target) # the shape of pred is [BS, num_joints, 2] -> [BS, num_joints, (X,Y)]
+        h = output.shape[2] #
+        w = output.shape[3] #
+        norm = np.ones((pred.shape[0], 2)) * np.array([h, w]) / 10      # (h/10, w/10)
+        # Normalize to make distances independent of image size.
+        # Dividing by (W/10, H/10) converts coordinates to a scale relative to image dimensions,
+        # ensuring fair distance comparison across different image resolutions.
+
         # [Batch, 2] all the value is 6.4
     dists = calc_dists(pred, target, norm) # calculate distance between pred and target
 
-    acc = np.zeros((len(idx) + 1)) # 17 + 1
+    acc = np.zeros((len(idx) + 1)) # num_joints + 1
     avg_acc = 0
     cnt = 0
 
-    for i in range(len(idx)): # 17
-        acc[i + 1] = dist_acc(dists[idx[i]]) # idx[i]  = batch number
+    for i in range(len(idx)): # num_joints
+        acc[i + 1] = dist_acc(dists[idx[i]], thr=thr) # idx[i]  = batch number
         if acc[i + 1] >= 0:
             avg_acc = avg_acc + acc[i + 1]
             cnt += 1

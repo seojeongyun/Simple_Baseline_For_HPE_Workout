@@ -27,22 +27,20 @@ def get_max_preds(batch_heatmaps):
     batch_size = batch_heatmaps.shape[0]
     num_joints = batch_heatmaps.shape[1]
     width = batch_heatmaps.shape[3]
-    heatmaps_reshaped = batch_heatmaps.reshape((batch_size, num_joints, -1))
-    # (#, 17, 4096)
+    heatmaps_reshaped = batch_heatmaps.reshape((batch_size, num_joints, -1)) # (BS, 17, 4096) / heatmap w,h is flattened
+    #
     idx = np.argmax(heatmaps_reshaped, 2)
-    # (32, 17)
-    # Extracting the largest index on heatmap using argmax means finding that where is a joint i need
-    # The range of idx is 0 ~ 4095.
+    # (BS, num_joints) : For each joints, Extracting the index of the largest value on the heatmap using argmax
+    # The range of idx is 0 ~ 4095(64 x 64).
 
     maxvals = np.amax(heatmaps_reshaped, 2)
-    # (32, 17)
-    # For the largest index, it extract max value on heatmap
+    # (BS, num_joints) : For each joints, Extracting the largest value on the heatmap
 
-    maxvals = maxvals.reshape((batch_size, num_joints, 1))
-    idx = idx.reshape((batch_size, num_joints, 1))
+    maxvals = maxvals.reshape((batch_size, num_joints, 1))  # (BS, num_joints, 1)
+    idx = idx.reshape((batch_size, num_joints, 1))          # (BS, num_joints, 1)
 
-    preds = np.tile(idx, (1, 1, 2)).astype(np.float32) # (32, 17, 2). 2(index[1]) -> copy of same value for index [0]
-    # preds have idx. -> this mean where is a joint on heatmap?
+    preds = np.tile(idx, (1, 1, 2)).astype(np.float32) # (BS, num_joints, 2) / idx(this shape is [24, 1]) is repeated twice to axis 2.
+    # Repeating twice because we want 2D outputs, e.g., (X, Y)
 
     preds[:, :, 0] = (preds[:, :, 0]) % width # column
     preds[:, :, 1] = np.floor((preds[:, :, 1]) / width) # row
