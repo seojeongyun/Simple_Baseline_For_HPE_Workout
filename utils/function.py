@@ -15,6 +15,7 @@ import os
 import cv2
 import numpy as np
 import torch
+import torch.distributed as dist
 
 from tqdm import tqdm
 from collections import defaultdict
@@ -62,7 +63,9 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         # compute output
         # --- forward: toggle autocast on/off based on use_amp ---
         if config.USE_AMP:
-            with autocast(dtype=amp_dtype):
+            # IN THIS CODE, USE ONLY FP16
+            # THIS IS BECAUSE NUMPY NOT SUPPORT BF16
+            with autocast(dtype=amp_dtype if not use_bf16 else torch.float16):
                 output = model(input)
 
         else:
@@ -105,19 +108,20 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                       data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
 
-            writer = writer_dict['writer']
-            global_steps = writer_dict['train_global_steps']
-            writer.add_scalar('train/loss', losses.val, global_steps)
-            writer.add_scalar('train/acc', acc.val, global_steps)
-            writer_dict['train_global_steps'] = global_steps + 1
+            if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                writer = writer_dict['writer']
+                global_steps = writer_dict['train_global_steps']
+                writer.add_scalar('train/loss', losses.val, global_steps)
+                writer.add_scalar('train/acc', acc.val, global_steps)
+                writer_dict['train_global_steps'] = global_steps + 1
 
-            result, ori, hm = plot_train_batch(config, input, output)
-            train_result = [result, ori, hm]
-            write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
+                result, ori, hm = plot_train_batch(config, input, output)
+                train_result = [result, ori, hm]
+                write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
 
-            prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-            save_debug_images(config, input, meta, target, pred*4, output,
-                              prefix)
+                prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
+                save_debug_images(config, input, meta, target, pred*4, output,
+                                  prefix)
 
         if i % (config.PRINT_FREQ * 10) == 0:
             acc_val = validate(config=config, val_loader=valid_loader, model=model,
@@ -209,19 +213,20 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                     data_time=data_time, loss=losses, acc=acc)
                 logger.info(msg)
 
-                writer = writer_dict['writer']
-                global_steps = writer_dict['train_global_steps']
-                writer.add_scalar('val/loss', losses.val, global_steps)
-                writer.add_scalar('val/acc', acc.val, global_steps)
-                writer_dict['train_global_steps'] = global_steps + 1
+                if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                    writer = writer_dict['writer']
+                    global_steps = writer_dict['train_global_steps']
+                    writer.add_scalar('val/loss', losses.val, global_steps)
+                    writer.add_scalar('val/acc', acc.val, global_steps)
+                    writer_dict['train_global_steps'] = global_steps + 1
 
-                result, ori, hm = plot_train_batch(config, input, output)
-                valid_result = [result, ori, hm]
-                write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
+                    result, ori, hm = plot_train_batch(config, input, output)
+                    valid_result = [result, ori, hm]
+                    write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
 
-                prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
-                save_debug_images(config, input, meta, target, pred * 4, output,
-                                  prefix)
+                    prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
+                    save_debug_images(config, input, meta, target, pred * 4, output,
+                                      prefix)
 
                 ####
             # if i % config.PRINT_FREQ == 0:

@@ -22,7 +22,7 @@ config.WORKERS = 4
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 #
 config.PRINT_FREQ = 50
-config.ACC_THR = 0.5
+config.ACC_THR = 0.3
 #
 config.USE_DDP = True   # True -> USE DDP   /   False -> USE single gpu
 config.USE_AMP = False

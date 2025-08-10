@@ -43,6 +43,11 @@ from torch.nn.parallel import DistributedDataParallel
 import dataset
 import models
 
+
+def cleanup():
+    """ Destroy process group """
+    dist.destroy_process_group()
+
 def init_distributed_training(rank):
     # 1. setting for distributed training
     config.DDP_OPTS.RANK = rank
@@ -220,13 +225,13 @@ def main(rank):
             #     'perf': perf_indicator,
             #     'optimizer': optimizer.state_dict(),
             # }, best_model, final_output_dir)
-
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'model': get_model_name(config),
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }, best_model, final_output_dir)
+            if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'model': get_model_name(config),
+                    'state_dict': model.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                }, best_model, final_output_dir)
 
             lr_scheduler.step()
         #
@@ -236,7 +241,8 @@ def main(rank):
         logger.info('saving final model state to {}'.format(
             final_model_state_file))
 
-        torch.save(model.module.state_dict(), final_model_state_file)
+        if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+            torch.save(model.module.state_dict(), final_model_state_file)
 
         writer_dict['writer'].close()
 
@@ -260,5 +266,7 @@ if __name__ == '__main__':
     # setproctitle('Generate Sequences information for transformer')
     if config.USE_DDP:
         torch.multiprocessing.spawn(main,nprocs=config.DDP_OPTS.NGPUS_PER_NODE,join=True)
+        cleanup()
+
     else:
         main(rank=None)
