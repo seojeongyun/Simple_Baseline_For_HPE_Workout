@@ -44,17 +44,28 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-
+        #
+        optimizer.zero_grad()
         # switch to train mode
         model.train()
         #
-        input = input.cuda(non_blocking=True)
-        target = target.cuda(non_blocking=True)
-        target_weight = target_weight.cuda(non_blocking=True)
+        if config.USE_DDP:
+            input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+            target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+            target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+
+        else:
+            input = input.cuda(int(config.GPUS), non_blocking=True)
+            target = target.cuda(int(config.GPUS), non_blocking=True)
+            target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
         # compute output
         # --- forward: toggle autocast on/off based on use_amp ---
-        with autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp):
+        if config.USE_AMP:
+            with autocast(dtype=amp_dtype):
+                output = model(input)
+
+        else:
             output = model(input)
 
         # --- compute loss in FP32 for stable convergence ---
@@ -136,9 +147,15 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             # measure data loading time
             data_time.update(time.time() - end)
             #
-            input = input.cuda(1, non_blocking=True)
-            target = target.cuda(1, non_blocking=True)
-            target_weight = target_weight.cuda(1, non_blocking=True)
+            if config.USE_DDP:
+                input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+
+            else:
+                input = input.cuda(int(config.GPUS), non_blocking=True)
+                target = target.cuda(int(config.GPUS), non_blocking=True)
+                target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
             # early stop condition
             max_val_images = 20 if is_training else None

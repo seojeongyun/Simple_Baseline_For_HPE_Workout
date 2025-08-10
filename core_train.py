@@ -21,15 +21,11 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
-import tensorboard
 import yaml
-import _init_paths
 import torch.distributed as dist
 
 from tensorboardX import SummaryWriter
 from config.config import config
-from config.config import update_config
-from config.config import update_dir
 from config.config import get_model_name
 from models.loss import JointsMSELoss
 from utils.function import train
@@ -39,13 +35,50 @@ from utils.utils import get_optimizer
 from utils.utils import save_checkpoint
 from utils.utils import create_logger
 from easydict import EasyDict as edict
-from cmd_in import get_args_parser
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader, DistributedSampler
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel
 
 import dataset
 import models
 
+def init_distributed_training(rank):
+    # 1. setting for distributed training
+    config.DDP_OPTS.RANK = rank
+    config.DDP_OPTS.GPU = config.DDP_OPTS.RANK % torch.cuda.device_count()
+    config.DDP_OPTS.LOCAL_GPU_ID = int(config.DDP_OPTS.GPU_IDS[config.DDP_OPTS.RANK])
+    torch.cuda.set_device(config.DDP_OPTS.LOCAL_GPU_ID)
+
+    if config.DDP_OPTS.RANK is not None:
+        print("Use GPU: {} for training".format(config.DDP_OPTS.LOCAL_GPU_ID))
+
+    # 2. init_process_group
+    torch.distributed.init_process_group(backend='nccl',
+                                         init_method='tcp://202.31.136.169:' + str(config.DDP_OPTS.PORT_NUM),
+                                         world_size=config.DDP_OPTS.NGPUS_PER_NODE,
+                                         rank=config.DDP_OPTS.RANK)
+
+    # if put this function, the all processes block at all.
+    torch.distributed.barrier()
+
+    # convert print fn iif rank is zero
+    setup_for_distributed(config.DDP_OPTS.RANK == 0)
+    print('CONFIG.DDP_OPTS :', config.DDP_OPTS)
+
+def setup_for_distributed(is_master):
+    """
+    This function disables printing when not in master process
+    """
+    import builtins as __builtin__
+    builtin_print = __builtin__.print
+
+    def print(*args, **kwargs):
+        force = kwargs.pop('force', False)
+        if is_master or force:
+            builtin_print(*args, **kwargs)
+
+    __builtin__.print = print
 
 def gen_config(config_file):
     cfg = dict(config)
@@ -56,9 +89,15 @@ def gen_config(config_file):
     with open(config_file, 'w') as f:
         yaml.dump(dict(cfg), f, default_flow_style=False)
 
-def main():
+def main(rank):
     gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/workout.yaml')
-
+    #
+    if config.USE_DDP:
+        init_distributed_training(rank)
+        local_gpu_id = config.DDP_OPTS.GPU
+    else:
+        device = torch.device(f"cuda:{config.GPUS}" if torch.cuda.is_available() else "cpu")
+    #
     logger, final_output_dir, tb_log_dir = create_logger(
         cfg=config, cfg_name=config.CONFIG_FILE_PATH.split('/')[2], phase=config.TASK)
 
@@ -68,10 +107,6 @@ def main():
     cudnn.benchmark = config.CUDNN.BENCHMARK
     torch.backends.cudnn.deterministic = config.CUDNN.DETERMINISTIC
     torch.backends.cudnn.enabled = config.CUDNN.ENABLED
-
-    from models.pose_resnet import get_pose_net
-    model = get_pose_net(config, is_train=True)
-    # Check the is_train -> whether your purpose is train or validation
 
     # copy model file
     this_dir = os.path.dirname(__file__)
@@ -84,23 +119,30 @@ def main():
         'train_global_steps': 0,
         'valid_global_steps': 0,
     }
+    #
+    from models.pose_resnet import get_pose_net
+    model = get_pose_net(config)
+    #
+    if config.USE_DDP:
+        # --- Distributed Data Parallel ---
+        model = model.cuda(local_gpu_id)
+        model = DistributedDataParallel(module=model, device_ids=[local_gpu_id], output_device=local_gpu_id)
+    else:
+        # --- Single GPU ---
+        model = model.to(device)
 
-    dump_input = torch.rand((config.TRAIN.BATCH_SIZE,
-                             3,
-                             config.MODEL.IMAGE_SIZE[1],
-                             config.MODEL.IMAGE_SIZE[0]))
-    writer_dict['writer'].add_graph(model, (dump_input, ), verbose=False)
+    #
     # To make calculation graph in the tensorboard, dump_input is forwarding.
+    # dump_input = torch.rand((config.TRAIN.BATCH_SIZE,
+    #                          3,
+    #                          config.MODEL.IMAGE_SIZE[1],
+    #                          config.MODEL.IMAGE_SIZE[0]))
+    # writer_dict['writer'].add_graph(model.cpu(), (dump_input, ), verbose=False)
 
-    gpus = [int(i) for i in config.GPUS.split(',')]
-
-    # if you want to use DataParallel, .cuda() replace .cuda(1)
-    model = torch.nn.DataParallel(model, device_ids=gpus).cuda(1) # To use multi gpus / gpus = [0, 1]
 
     # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=config.LOSS.USE_TARGET_WEIGHT
-    ).cuda(1) # if you want to use DataParallel, .cuda() replace .cuda(1)
+    criterion = JointsMSELoss(use_target_weight=config.LOSS.USE_TARGET_WEIGHT)
+    criterion = criterion.to(local_gpu_id) if config.USE_DDP else criterion.to(device)
 
     optimizer = get_optimizer(config, model)
 
@@ -118,27 +160,41 @@ def main():
                              root=config.DATASET.ROOT,
                              task=config.TASK,
                              transform=transforms.Compose([transforms.ToTensor(), normalize]))
-
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=config.TRAIN.BATCH_SIZE * len(gpus),
-            shuffle=config.TRAIN.SHUFFLE,
-            num_workers=config.WORKERS,
-            pin_memory=True
-        )
+        if config.USE_DDP:
+            train_sampler = DistributedSampler(dataset=train_dataset, shuffle=True)
+            batch_sampler_train = torch.utils.data.BatchSampler(train_sampler, config.TRAIN.BATCH_SIZE, drop_last=True)
+            train_loader = DataLoader(train_dataset,
+                                      batch_sampler=batch_sampler_train,
+                                      num_workers=config.DDP_OPTS.NUM_WORKERS,
+                                      pin_memory=True)
+        else:
+            train_loader = torch.utils.data.DataLoader(
+                train_dataset,
+                batch_size=config.TRAIN.BATCH_SIZE,
+                shuffle=config.TRAIN.SHUFFLE,
+                num_workers=config.WORKERS,
+                pin_memory=True
+            )
 
     valid_dataset = JointsDataset(cfg=config,
                          root=config.DATASET.ROOT_VALID_LABEL,
                          task='validation' if config.TASK == 'train' else config.TASK,
                          transform=transforms.Compose([transforms.ToTensor(), normalize]))
-
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=config.TEST.BATCH_SIZE*len(gpus),
-        shuffle=config.TEST.SHUFFLE,
-        num_workers=config.WORKERS,
-        pin_memory=True
-    )
+    if config.USE_DDP:
+        valid_sampler = DistributedSampler(dataset=valid_dataset, shuffle=True)
+        batch_sampler_valid = torch.utils.data.BatchSampler(valid_sampler, config.TEST.BATCH_SIZE, drop_last=True)
+        valid_loader = DataLoader(valid_dataset,
+                                  batch_sampler=batch_sampler_valid,
+                                  num_workers=config.DDP_OPTS.NUM_WORKERS,
+                                  pin_memory=True)
+    else:
+        valid_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=config.TEST.BATCH_SIZE,
+            shuffle=config.TEST.SHUFFLE,
+            num_workers=config.WORKERS,
+            pin_memory=True
+        )
 
     best_perf = 0.0
     val_acc = 0.0
@@ -148,7 +204,7 @@ def main():
             acc_list = []
             # train for one epoch
             train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-                                 final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.TRAIN.USE_AMP)
+                                 final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)
 
             # if perf_indicator > best_perf:
             #     best_perf = perf_indicator
@@ -202,4 +258,7 @@ if __name__ == '__main__':
     from setproctitle import *
     setproctitle('Simple_Baseline : Workout [1024, 1024]')
     # setproctitle('Generate Sequences information for transformer')
-    main()
+    if config.USE_DDP:
+        torch.multiprocessing.spawn(main,nprocs=config.DDP_OPTS.NGPUS_PER_NODE,join=True)
+    else:
+        main(rank=None)

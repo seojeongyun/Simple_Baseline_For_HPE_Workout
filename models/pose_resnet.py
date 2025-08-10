@@ -261,6 +261,8 @@ class PoseResNet(nn.Module):
             logger.info('=> loading pretrained models {}'.format(pretrained))
             # self.load_state_dict(pretrained_state_dict, strict=False)
             checkpoint = torch.load(pretrained, map_location='cpu')
+            if 'coco' in pretrained:
+                checkpoint = checkpoint['state_dict']
             final_module_bias = list(checkpoint.keys())[-1]
             final_module_weight = list(checkpoint.keys())[-2]
             del checkpoint[final_module_bias]
@@ -275,9 +277,9 @@ class PoseResNet(nn.Module):
                 if key.startswith('module.'):
                     # state_dict[key[7:]] = state_dict[key]
                     # state_dict.pop(key)
-                    state_dict[key[7:]] = state_dict_old[key].cpu()
+                    state_dict[key[7:]] = state_dict_old[key]
                 else:
-                    state_dict[key] = state_dict_old[key].cpu()
+                    state_dict[key] = state_dict_old[key]
             # else:
             #     raise RuntimeError(
             #         'No state_dict found in checkpoint file {}'.format(pretrained))
@@ -314,7 +316,7 @@ resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
                152: (Bottleneck, [3, 8, 36, 3])}
 
 
-def get_pose_net(cfg, is_train, **kwargs):
+def get_pose_net(cfg, **kwargs):
     num_layers = cfg.MODEL.EXTRA.NUM_LAYERS # 18, 34, 50, 101, 152
     style = cfg.MODEL.STYLE
 

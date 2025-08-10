@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import os
 import yaml
+import torch
 
 import numpy as np
 from easydict import EasyDict as edict
@@ -11,20 +12,36 @@ from easydict import EasyDict as edict
 
 config = edict()
 
+config.CONFIG_FILE_PATH = './configs/workout.yaml'
 config.OUTPUT_DIR = './result'
 config.LOG_DIR = ''
 config.DATA_DIR = ''
+#
 config.GPUS ='1'          # '0,1'
 config.WORKERS = 4
+config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
+#
 config.PRINT_FREQ = 50
-config.TASK = 'validation' # ['train', 'validation', 'get_sequences_for_tf']
-config.CONFIG_FILE_PATH = './configs/workout.yaml'
 config.ACC_THR = 0.5
+#
+config.USE_DDP = True   # True -> USE DDP   /   False -> USE single gpu
+config.USE_AMP = False
+
+
+
+
 # Cudnn related params
 config.CUDNN = edict()
 config.CUDNN.BENCHMARK = True
 config.CUDNN.DETERMINISTIC = False
 config.CUDNN.ENABLED = True
+
+# Distributed Data Parallel related params
+config.DDP_OPTS = edict()
+config.DDP_OPTS.NGPUS_PER_NODE = torch.cuda.device_count()
+config.DDP_OPTS.GPU_IDS = list(range(config.DDP_OPTS.NGPUS_PER_NODE))
+config.DDP_OPTS.NUM_WORKERS = config.DDP_OPTS.NGPUS_PER_NODE * 0
+config.DDP_OPTS.PORT_NUM = 31934
 
 # pose_resnet related params
 POSE_RESNET = edict()
@@ -46,8 +63,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = True      # path
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth__.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'      # path
 config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [1024, 1024]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]

@@ -1,3 +1,4 @@
+ACC_THR: 0.5
 CONFIG_FILE_PATH: ./configs/workout.yaml
 CUDNN:
   BENCHMARK: true
@@ -20,6 +21,13 @@ DATASET:
   TRAIN_SET_PATH: ./json_files/train.json
   VALID_SET_PATH: ./json_files/valid.json
 DATA_DIR: ''
+DDP_OPTS:
+  GPU_IDS:
+  - 0
+  - 1
+  NGPUS_PER_NODE: 2
+  NUM_WORKERS: 0
+  PORT_NUM: 31934
 DEBUG:
   DEBUG: false
   SAVE_BATCH_IMAGES_GT: false
@@ -66,11 +74,11 @@ MODEL:
   INIT_WEIGHTS: false
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/model_best.pth__.tar
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar
   STYLE: pytorch
 OUTPUT_DIR: ./result
 PRINT_FREQ: 50
-TASK: validation
+TASK: train
 TEST:
   BATCH_SIZE: 4
   BBOX_THRE: 1.0
@@ -104,4 +112,6 @@ TRAIN:
   SHUFFLE: true
   USE_AMP: false
   WD: 0.0001
+USE_AMP: false
+USE_DDP: false
 WORKERS: 4
