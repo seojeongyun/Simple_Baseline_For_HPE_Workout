@@ -151,9 +151,9 @@ class JointsDataset(Dataset):
         #
         data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
 
-        if self.transform:
-            input = self.transform(input)
-            # Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        # if self.transform:
+        #     input = self.transform(input)
+        #     # Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         #
         data_numpy = cv2.resize(data_numpy, (self.cfg.MODEL.IMAGE_SIZE[0], self.cfg.MODEL.IMAGE_SIZE[1]))
         #
