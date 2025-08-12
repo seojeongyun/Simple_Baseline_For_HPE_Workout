@@ -53,7 +53,7 @@ POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
 POSE_RESNET.FINAL_CONV_KERNEL = 1
 POSE_RESNET.TARGET_TYPE = 'gaussian'
 POSE_RESNET.HEATMAP_SIZE = [256, 256]  # width * height, ex: 24 * 32
-POSE_RESNET.SIGMA = 2
+POSE_RESNET.SIGMA = 1.5                 # 2
 
 MODEL_EXTRAS = {
     'pose_resnet': POSE_RESNET,
@@ -63,7 +63,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'      # path
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_1epoch.tar'      # path
 config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [1024, 1024]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
@@ -99,7 +99,7 @@ config.TRAIN = edict()
 
 config.TRAIN.LR_FACTOR = 0.1
 config.TRAIN.LR_STEP = [90, 110]
-config.TRAIN.LR = 0.001
+config.TRAIN.LR = 0.001 * 0.8 # 0.001
 
 config.TRAIN.OPTIMIZER = 'adam'
 config.TRAIN.MOMENTUM = 0.9

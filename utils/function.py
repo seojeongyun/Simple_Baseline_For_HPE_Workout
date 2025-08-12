@@ -8,6 +8,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import random
 import logging
 import time
 import os
@@ -119,6 +120,11 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                 train_result = [result, ori, hm]
                 write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
 
+                if acc.val < 0.9:
+                    result, ori, hm = plot_train_batch(config, input, output)
+                    train_result = [result, ori, hm]
+                    write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='lower_perf')
+
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
@@ -162,7 +168,9 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
             # early stop condition
-            max_val_images = 20 if is_training else None
+            # max_val_images = 20 if is_training else None
+            max_val_images = random.randint(2, 10) if is_training else None # To check various test images in the tensorboard, we make randint value.
+
             if max_val_images is not None and seen >= max_val_images:
                 break
 
@@ -201,14 +209,15 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             # all_boxes[idx:idx + num_images, 5] = score
 
             #####
-            if i % config.PRINT_FREQ == 0:
+            # if i % config.PRINT_FREQ == 0:
+            if i % max_val_images-1 == 0:
                 msg = 'Epoch: [{0}][{1}/{2}]\t' \
                       'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                       'Speed {speed:.1f} samples/s\t' \
                       'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
                       'Loss {loss.val:.5f} ({loss.avg:.5f})\t' \
                       'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                    1, i, len(val_loader), batch_time=batch_time,
+                    0, i, len(val_loader), batch_time=batch_time,
                     speed=input.size(0) / batch_time.val,
                     data_time=data_time, loss=losses, acc=acc)
                 logger.info(msg)
