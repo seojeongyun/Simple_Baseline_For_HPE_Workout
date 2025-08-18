@@ -262,7 +262,7 @@ def main(rank):
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('Simple_Baseline : Workout [1024, 1024]')
+    setproctitle('HPE : sigma=0.1 / lr=0.001*0.7 / thr = 0.2')
     # setproctitle('Generate Sequences information for transformer')
     if config.USE_DDP:
         torch.multiprocessing.spawn(main,nprocs=config.DDP_OPTS.NGPUS_PER_NODE,join=True)

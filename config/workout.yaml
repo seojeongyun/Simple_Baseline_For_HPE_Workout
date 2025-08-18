@@ -1,4 +1,4 @@
-ACC_THR: 0.3
+ACC_THR: 0.2
 CONFIG_FILE_PATH: ./configs/workout.yaml
 CUDNN:
   BENCHMARK: true
@@ -56,7 +56,7 @@ MODEL:
       - 4
       NUM_DECONV_LAYERS: 3
       NUM_LAYERS: 50
-      SIGMA: 1.5
+      SIGMA: 1.0
       TARGET_TYPE: gaussian
     state:
       DECONV_WITH_BIAS: false
@@ -66,7 +66,7 @@ MODEL:
       NUM_DECONV_KERNELS: *id003
       NUM_DECONV_LAYERS: 3
       NUM_LAYERS: 50
-      SIGMA: 1.5
+      SIGMA: 1.0
       TARGET_TYPE: gaussian
   IMAGE_SIZE:
   - 1024
@@ -74,7 +74,7 @@ MODEL:
   INIT_WEIGHTS: false
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/workout_1epoch.tar
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar
   STYLE: pytorch
 OUTPUT_DIR: ./result
 PRINT_FREQ: 50
@@ -100,7 +100,7 @@ TRAIN:
   END_EPOCH: 10
   GAMMA1: 0.99
   GAMMA2: 0.0
-  LR: 0.0008
+  LR: 0.0007
   LR_FACTOR: 0.1
   LR_STEP:
   - 90
@@ -113,5 +113,5 @@ TRAIN:
   USE_AMP: false
   WD: 0.0001
 USE_AMP: false
-USE_DDP: true
+USE_DDP: false
 WORKERS: 4

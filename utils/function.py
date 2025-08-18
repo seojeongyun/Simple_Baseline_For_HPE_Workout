@@ -27,6 +27,7 @@ from utils.transforms import flip_back
 from utils.vis import save_debug_images
 from utils.events import NCOLS, load_yaml, write_tbimg
 from torch.cuda.amp import autocast, GradScaler
+from utils.utils import save_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,11 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                       speed=input.size(0)/batch_time.val,
                       data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
-
+            #
+            save_checkpoint({
+                'state_dict': model.state_dict(),
+            }, is_best=False, output_dir=output_dir, is_save_during_epoch=True)
+            #
             if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
                 writer = writer_dict['writer']
                 global_steps = writer_dict['train_global_steps']
@@ -151,6 +156,10 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
     idx = 0
     end = time.time()
+
+    # To check various test images in the tensorboard, we make randint value.
+    max_val_images = random.randint(2,10) if is_training else None
+
     with torch.no_grad():
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
@@ -169,7 +178,6 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
             # early stop condition
             # max_val_images = 20 if is_training else None
-            max_val_images = random.randint(2, 10) if is_training else None # To check various test images in the tensorboard, we make randint value.
 
             if max_val_images is not None and seen >= max_val_images:
                 break
@@ -210,7 +218,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
             #####
             # if i % config.PRINT_FREQ == 0:
-            if i % max_val_images-1 == 0:
+            if i % max_val_images == 0:
                 msg = 'Epoch: [{0}][{1}/{2}]\t' \
                       'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                       'Speed {speed:.1f} samples/s\t' \
