@@ -91,7 +91,8 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         losses.update(loss.item(), input.size(0))
 
         _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(),
-                                         target.detach().cpu().numpy())
+                                         target.detach().cpu().numpy(),
+                                         thr = config.ACC_THR)
         acc.update(avg_acc, cnt)
 
         # measure elapsed time
@@ -103,8 +104,8 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                   'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                   'Speed {speed:.1f} samples/s\t' \
                   'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
-                  'Loss {loss.val:.5f} ({loss.avg:.5f})\t' \
-                  'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+                  'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                  'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
                       epoch, i, len(train_loader), batch_time=batch_time,
                       speed=input.size(0)/batch_time.val,
                       data_time=data_time, loss=losses, acc=acc)
@@ -223,8 +224,8 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                       'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                       'Speed {speed:.1f} samples/s\t' \
                       'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
-                      'Loss {loss.val:.5f} ({loss.avg:.5f})\t' \
-                      'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+                      'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                      'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
                     0, i, len(val_loader), batch_time=batch_time,
                     speed=input.size(0) / batch_time.val,
                     data_time=data_time, loss=losses, acc=acc)

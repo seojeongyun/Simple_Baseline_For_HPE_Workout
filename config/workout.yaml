@@ -56,7 +56,7 @@ MODEL:
       - 4
       NUM_DECONV_LAYERS: 3
       NUM_LAYERS: 50
-      SIGMA: 1.0
+      SIGMA: 1.2
       TARGET_TYPE: gaussian
     state:
       DECONV_WITH_BIAS: false
@@ -66,7 +66,7 @@ MODEL:
       NUM_DECONV_KERNELS: *id003
       NUM_DECONV_LAYERS: 3
       NUM_LAYERS: 50
-      SIGMA: 1.0
+      SIGMA: 1.2
       TARGET_TYPE: gaussian
   IMAGE_SIZE:
   - 1024
@@ -74,7 +74,7 @@ MODEL:
   INIT_WEIGHTS: false
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar
   STYLE: pytorch
 OUTPUT_DIR: ./result
 PRINT_FREQ: 50

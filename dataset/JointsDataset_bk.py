@@ -44,8 +44,12 @@ class JointsDataset(Dataset):
         self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
 
-        self.scale_factor = cfg.DATASET.SCALE_FACTOR
-        self.rotation_factor = cfg.DATASET.ROT_FACTOR
+        self.scale = cfg.DATASET.SCALE
+        self.rotate = cfg.DATASET.ROTATE
+
+        self.scale_min = cfg.DATASET.SCALE_MIN
+        self.scale_max = cfg.DATASET.SCALE_MAX
+        self.rotation_factor = cfg.DATASET.ROT_FACTOR_MAX
         self.flip = cfg.DATASET.FLIP
 
         self.image_size = cfg.MODEL.IMAGE_SIZE
@@ -121,7 +125,7 @@ class JointsDataset(Dataset):
         return len(self.img_paths)
 
     def __getitem__(self, idx):
-        image_file = self.img_paths[idx]
+        image_file = self.img_paths[idx]      # self.key has a lot of image paths
 
         if self.task == 'get_sequences_for_tf':
             condition = self.workout_conditions[idx]
@@ -129,96 +133,50 @@ class JointsDataset(Dataset):
             view_idx = self.view_idx_list[idx]
             max_frame = self.max_frame
 
-        if self.data_format == 'zip':  # in this case, data_format is jpg
+        if self.data_format == 'zip':       # in this case, data_format is jpg
             from utils import zipreader
             data_numpy = zipreader.imread(
                 image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         else:
             data_numpy = cv2.imread(
                 image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+            # img = data_numpy
+            # h, w, c = img.shape
+            # data_numpy = img[:, 420: w - 420, :]
+            # data_numpy shape : [1080, 1920, 3]
 
         if data_numpy is None:
             logger.error('=> fail to read {}'.format(image_file))
             raise ValueError('Fail to read {}'.format(image_file))
 
-        H, W = data_numpy.shape[:2]  # H=1080, W=1920
-        CROP = 1080
-        cx, cy = W / 2.0, H / 2.0  # (960, 540)
-        s_min, s_max, r_max = self.scale_min, self.scale_max, self.rotation_factor
-
-        scale = np.random.uniform(s_min, s_max) if self.scale else 1.0
-        angle = np.random.uniform(-r_max, r_max) if self.rotate else 0.0
-
-        M = cv2.getRotationMatrix2D((cx, cy), angle, scale)
-        transformed_img = cv2.warpAffine(
-            data_numpy, M, (W, H),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=0
-        )
-
-        x0, x1 = int(round(cx - CROP / 2)), int(round(cx + CROP / 2))
-        y0, y1 = int(round(cy - CROP / 2)), int(round(cy + CROP / 2))
-        cropped = transformed_img[y0:y1, x0:x1]
-
         if self.task != 'get_sequences_for_tf':
-            joints = np.array(self.db[image_file]['joints'], dtype=np.float32)
-            joints_xy = joints[:, :2].copy()
+            w, h = data_numpy.shape[1], data_numpy.shape[0]
+            #
+            joints = np.array(self.db[image_file]['joints'])
+            joints[:,0], joints[:,1] = joints[:,0] / w * self.cfg.MODEL.IMAGE_SIZE[0], joints[:,1] / h * self.cfg.MODEL.IMAGE_SIZE[0]
+            # normalize to cfg.MODEL.IMAGE_SIZE == 1080 to 1024
+        #
+        data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
 
-            ones = np.ones((joints_xy.shape[0], 1), dtype=np.float32)
-            hom = np.hstack([joints_xy, ones])  # (N,3)
-
-            transformed_xy = (M @ hom.T).T  # (N,2)
-            transformed_xy -= np.array([x0, y0], dtype=np.float32)
-
-            valid = (
-                    (transformed_xy[:, 0] >= 0) & (transformed_xy[:, 0] < CROP) &
-                    (transformed_xy[:, 1] >= 0) & (transformed_xy[:, 1] < CROP)
-            )
-
-        data_numpy = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
-
-        out_w, out_h = self.cfg.MODEL.IMAGE_SIZE
-        if (out_w, out_h) != (CROP, CROP):
-            data_numpy = cv2.resize(data_numpy, (out_w, out_h))
-
+        # if self.transform:
+        #     input = self.transform(input)
+        #     # Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        #
+        data_numpy = cv2.resize(data_numpy, (self.cfg.MODEL.IMAGE_SIZE[0], self.cfg.MODEL.IMAGE_SIZE[1]))
+        #
+        data_numpy = data_numpy.transpose(2,0,1)
         if self.task != 'get_sequences_for_tf':
-            scale_x = out_w / float(CROP)
-            scale_y = out_h / float(CROP)
-            joints_xy *= np.array([scale_x, scale_y], dtype=np.float32)
-
-            joints_out = joints.copy()
-            joints_out[:, :2] = joints_xy
-
-        data_numpy = data_numpy.transpose(2, 0, 1)  # CHW
-        data_numpy = torch.from_numpy(data_numpy).float()
-
-        if self.task != 'get_sequences_for_tf':
-            scale_x = out_w / float(CROP)
-            scale_y = out_h / float(CROP)
-            transformed_xy *= np.array([scale_x, scale_y], dtype=np.float32)
-
-            joints_out = joints.copy()
-            joints_out[:, :2] = transformed_xy
-
-        data_numpy = data_numpy.transpose(2, 0, 1)
-        data_numpy = torch.from_numpy(data_numpy).float()
-
-        if self.task != 'get_sequences_for_tf':
-            target, target_weight = self.generate_target(joints_out)
-            if target_weight.shape[0] == valid.shape[0]:
-                target_weight *= valid[:, None].astype(np.float32)
-
+            target, target_weight = self.generate_target(joints)
             target = torch.from_numpy(target)
             target_weight = torch.from_numpy(target_weight)
 
             meta = {
                 'image': image_file,
-                'joints': joints_out,
-                'scale_used': float(scale),
-                'angle_used': float(angle),
-                'crop_box': (x0, y0, x1, y1)
+                'joints': joints,
             }
+
+        # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
+        data_numpy = torch.from_numpy(data_numpy).float()
 
         if self.task == 'get_sequences_for_tf':
             return data_numpy, condition, image_file, video_idx, view_idx, max_frame
