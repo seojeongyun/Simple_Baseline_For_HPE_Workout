@@ -205,47 +205,49 @@ def main(rank):
     val_acc = 0.0
     best_model = False
     if config.TASK == 'train':
-        for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
-            acc_list = []
-            # train for one epoch
-            train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
-                                 final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)
-
-            # if perf_indicator > best_perf:
-            #     best_perf = perf_indicator
-            #     best_model = True
-            # else:
-            #     best_model = False
-
-            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-            # save_checkpoint({
-            #     'epoch': epoch + 1,
-            #     'model': get_model_name(config),
-            #     'state_dict': model.state_dict(),
-            #     'perf': perf_indicator,
-            #     'optimizer': optimizer.state_dict(),
-            # }, best_model, final_output_dir)
-            if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-                save_checkpoint({
-                    'epoch': epoch + 1,
-                    'model': get_model_name(config),
-                    'state_dict': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                }, best_model, final_output_dir)
-
-            lr_scheduler.step()
+        # for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
+        #     acc_list = []
+        #     # train for one epoch
+        #     train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+        #                          final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)
         #
-        final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
-                                              'final_state.pth.tar')
-
-        logger.info('saving final model state to {}'.format(
-            final_model_state_file))
-
-        if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-            torch.save(model.module.state_dict(), final_model_state_file)
-
-        writer_dict['writer'].close()
-
+        #     # if perf_indicator > best_perf:
+        #     #     best_perf = perf_indicator
+        #     #     best_model = True
+        #     # else:
+        #     #     best_model = False
+        #
+        #     logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+        #     # save_checkpoint({
+        #     #     'epoch': epoch + 1,
+        #     #     'model': get_model_name(config),
+        #     #     'state_dict': model.state_dict(),
+        #     #     'perf': perf_indicator,
+        #     #     'optimizer': optimizer.state_dict(),
+        #     # }, best_model, final_output_dir)
+        #     if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+        #         save_checkpoint({
+        #             'epoch': epoch + 1,
+        #             'model': get_model_name(config),
+        #             'state_dict': model.state_dict(),
+        #             'optimizer': optimizer.state_dict(),
+        #         }, best_model, final_output_dir)
+        #
+        #     lr_scheduler.step()
+        # #
+        # final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
+        #                                       'final_state.pth.tar')
+        #
+        # logger.info('saving final model state to {}'.format(
+        #     final_model_state_file))
+        #
+        # if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+        #     torch.save(model.module.state_dict(), final_model_state_file)
+        #
+        # writer_dict['writer'].close()
+        cnt = train(config, train_loader, valid_loader, model, criterion, optimizer, 1,
+                                 final_output_dir, tb_log_dir, writer_dict, 1, use_amp=config.USE_AMP)
+        print(cnt)
     elif config.TASK == 'validation':
         epoch = 0
         acc = validate(config=config, val_loader=valid_loader, model=model,

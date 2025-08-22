@@ -44,8 +44,12 @@ class JointsDataset(Dataset):
         self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
 
-        self.scale_factor = cfg.DATASET.SCALE_FACTOR
-        self.rotation_factor = cfg.DATASET.ROT_FACTOR
+        self.scale = cfg.DATASET.SCALE
+        self.rotate = cfg.DATASET.ROTATE
+
+        self.scale_min = cfg.DATASET.SCALE_MIN
+        self.scale_max = cfg.DATASET.SCALE_MAX
+        self.rotation_factor = cfg.DATASET.ROT_FACTOR_MAX
         self.flip = cfg.DATASET.FLIP
 
         self.image_size = cfg.MODEL.IMAGE_SIZE
@@ -60,6 +64,8 @@ class JointsDataset(Dataset):
         else:
             self.img_paths, self.db = self.get_db()
 
+        # DEBUG
+        self.out_of_scene = 0
     def get_db(self):
         if self.task == 'train':
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r', encoding="utf-8") as f:
@@ -175,9 +181,22 @@ class JointsDataset(Dataset):
                     (transformed_xy[:, 0] >= 0) & (transformed_xy[:, 0] < CROP) &
                     (transformed_xy[:, 1] >= 0) & (transformed_xy[:, 1] < CROP)
             )
+            if False in valid:
+                self.out_of_scene += 1
 
         data_numpy = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
 
+        # DEBUG
+        for (x, y) in transformed_xy:
+            cv2.circle(data_numpy, (int(x), int(y)), radius=5, color=(0, 255, 0), thickness=-1)
+
+        cv2.imshow("Keypoints", data_numpy)
+        key = cv2.waitKey(0)  # �� ���� ����
+        if key == 27:  # Esc ������ ����
+            cv2.destroyAllWindows()
+        #
+        #
+        #
         out_w, out_h = self.cfg.MODEL.IMAGE_SIZE
         if (out_w, out_h) != (CROP, CROP):
             data_numpy = cv2.resize(data_numpy, (out_w, out_h))
@@ -191,17 +210,6 @@ class JointsDataset(Dataset):
             joints_out[:, :2] = joints_xy
 
         data_numpy = data_numpy.transpose(2, 0, 1)  # CHW
-        data_numpy = torch.from_numpy(data_numpy).float()
-
-        if self.task != 'get_sequences_for_tf':
-            scale_x = out_w / float(CROP)
-            scale_y = out_h / float(CROP)
-            transformed_xy *= np.array([scale_x, scale_y], dtype=np.float32)
-
-            joints_out = joints.copy()
-            joints_out[:, :2] = transformed_xy
-
-        data_numpy = data_numpy.transpose(2, 0, 1)
         data_numpy = torch.from_numpy(data_numpy).float()
 
         if self.task != 'get_sequences_for_tf':
@@ -223,7 +231,7 @@ class JointsDataset(Dataset):
         if self.task == 'get_sequences_for_tf':
             return data_numpy, condition, image_file, video_idx, view_idx, max_frame
         else:
-            return data_numpy, target, target_weight, meta
+            return data_numpy, target, target_weight, meta, self.out_of_scene
 
     def select_data(self, db):
         db_selected = []

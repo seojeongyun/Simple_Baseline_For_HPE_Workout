@@ -15,8 +15,11 @@ DATASET:
   ROOT_LABEL: /storage/jysuh/fitness/fitness/train/label
   ROOT_VALID_IMAGE: /storage/jysuh/fitness/fitness/validation/image
   ROOT_VALID_LABEL: /storage/jysuh/fitness/fitness/validation/label
-  ROT_FACTOR: 30
-  SCALE_FACTOR: 0.25
+  ROTATE: true
+  ROT_FACTOR_MAX: 30
+  SCALE: true
+  SCALE_MAX: 1.25
+  SCALE_MIN: 0.75
   SELECT_DATA: false
   TRAIN_SET_PATH: ./json_files/train.json
   VALID_SET_PATH: ./json_files/valid.json
