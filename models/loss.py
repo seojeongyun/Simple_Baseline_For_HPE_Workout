@@ -14,50 +14,48 @@ import torch.nn as nn
 class JointsMSELoss(nn.Module):
     def __init__(self, use_target_weight):
         super(JointsMSELoss, self).__init__()
-        self.criterion = nn.MSELoss(size_average=True)
+        self.criterion = nn.MSELoss(reduction='none') if use_target_weight else nn.MSELoss(reduction='mean')
         self.use_target_weight = use_target_weight
 
     def forward(self, output, target, target_weight):
-        batch_size = output.size(0)
-        num_joints = output.size(1)
-        heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)
-        # output.reshape((batch_size, num_joints, -1)).shape is torch.Size([32, 16, 4096])
-        # The type of result of applying .split(1,1) is tuple.
-        # Each element shape of the tuple is torch.Size([32, 1, 4096])
-        # The tuple = ( ([32, 1, 4096]),       ([32, 1, 4096]),          ([32, 1, 4096]),       ...     ([32, 1, 4096]))
-        # it means        only a head        only a left shoulder     only a right shoulder            only a right ankle
-        # The length of the tuple is 17.
-        heatmaps_gt = target.reshape((batch_size, num_joints, -1)).split(1, 1)
-        loss = 0
-    #
-        for idx in range(num_joints): # the number of iteration is 17
-            # heatmap_pred = heatmap's'_pred[idx] -> if idx is 1, the heatmap_pred means flattend heatmap for only a head.
-            heatmap_pred = heatmaps_pred[idx].squeeze() # shape -> torch.Size([Batch, 4096])
-            # heatmaps_pred[idx].shape is torch.Size([Batch, 1, 4096])
-            # 4096 means flattened heatmap for a joint
-            # ex) heatmaps_pred[0].squeeze().shape is torch.Size([Batch, 4096])
-            # Maybe, heatmaps_pred[1] means a left shoulder, heatmap_pred[2] means a right shoulder.
+        """
+        output, target: [B, J, H, W]
+        target_weight: [B, J] ?? [B, J, 1] (float, 0/1)
+        """
+        eps = 1e-6
+        B, J, H, W = output.shape
+        HW = H * W
 
-            heatmap_gt = heatmaps_gt[idx].squeeze() # shape -> torch.Size([Batch, 4096])
-            if self.use_target_weight: #
-                loss += 0.5 * self.criterion( # self.criterion is MSE Loss
-                    heatmap_pred.mul(target_weight[:, idx]),
-                    # The shape of target_weight[:, idx] is torch.Size([Batch, 1])
-                    # target_weight[:, idx] means whether the joint for idx detected or not.
-                    heatmap_gt.mul(target_weight[:, idx])
-                )
-                # heatmap_pred.mul(target_weight[:, idx]) => [Batch, 4096] * [Batch , 1] => multiply (constant value = [Batch, 1]) to (each of the 4096 pixels = [Batch, 4096])
+        # [B, J, HW]
+        pred = output.view(B, J, HW)
+        gt = target.view(B, J, HW)
 
-                # if heatmap_pred = heatmaps_pred[0].squeeze() and target_weight[:, 0],
-                # this multiply consider visibility for a head on predicted heatmap
-                # if idx = 1, consider visibility of a left shoulder.
+        loss = 0.0
+        for idx in range(J):
+            # [B, HW]
+            pred_i = pred[:, idx, :]
+            gt_i = gt[:, idx, :]
 
-                # < Predict a head >
-                # The network may predict that a head exist when a head not exist in a picture.
-                # The target_weight[:, idx] that has information of visibility for each joint prevent this case.
+            # MSE: [B, HW]
+            per_pix = self.criterion(pred_i, gt_i)
 
+            if self.use_target_weight:
+                # [B]
+                if target_weight.dim() == 3:  # if [B, J, 1]
+                    target_weight_batch = target_weight[:, idx, 0]
+                else:  # if [B, J]
+                    target_weight_batch = target_weight[:, idx]
+
+                # [B] -> [B,1]
+                target_weight_batch_map = target_weight_batch.view(B, 1)
+
+                #
+                num = (per_pix * target_weight_batch_map).sum()  # Sum of pixel-wise losses from visible batches
+                den = (target_weight_batch_map.sum() * HW).clamp_min(eps)  # Number of pixels from visible batches
+                loss_i = 0.5 * (num / den)
             else:
-                loss += 0.5 * self.criterion(heatmap_pred, heatmap_gt)
+                loss_i = 0.5 * per_pix.mean()
 
-        return loss / num_joints
-        # Maybe not reflect loss for the each joint..??
+            loss += loss_i
+
+        return loss / J

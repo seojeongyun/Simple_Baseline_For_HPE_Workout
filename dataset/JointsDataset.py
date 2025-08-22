@@ -50,14 +50,18 @@ class JointsDataset(Dataset):
         self.scale_min = cfg.DATASET.SCALE_MIN
         self.scale_max = cfg.DATASET.SCALE_MAX
         self.rotation_factor = cfg.DATASET.ROT_FACTOR_MAX
+
         self.flip = cfg.DATASET.FLIP
+        self.flip_prob = cfg.DATASET.FLIP_PROB
+        self.flip_pairs = cfg.DATASET.FLIP_JOINTS_PAIRS
 
         self.image_size = cfg.MODEL.IMAGE_SIZE
         self.target_type = cfg.MODEL.EXTRA.TARGET_TYPE
         self.heatmap_size = cfg.MODEL.EXTRA.HEATMAP_SIZE
-        self.sigma = cfg.MODEL.EXTRA.SIGMA
-
+        #
+        # self.sigma = cfg.MODEL.EXTRA.SIGMA
         self.transform = transform
+        self.debugging = True
 
         if self.task == 'get_sequences_for_tf':
             self.img_paths, self.workout_conditions, self.video_idx_list, self.view_idx_list, self.db, self.max_frame = self.get_db()
@@ -155,34 +159,45 @@ class JointsDataset(Dataset):
         scale = np.random.uniform(s_min, s_max) if self.scale else 1.0
         angle = np.random.uniform(-r_max, r_max) if self.rotate else 0.0
 
-        M = cv2.getRotationMatrix2D((cx, cy), angle, scale)
-        transformed_img = cv2.warpAffine(
-            data_numpy, M, (W, H),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=0
-        )
+        if self.scale or self.rotate:
+            M = cv2.getRotationMatrix2D((cx, cy), angle, scale)
+            transformed_img = cv2.warpAffine(
+                data_numpy, M, (W, H),
+                flags=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=0
+            )
 
         x0, x1 = int(round(cx - CROP / 2)), int(round(cx + CROP / 2))
         y0, y1 = int(round(cy - CROP / 2)), int(round(cy + CROP / 2))
-        cropped = transformed_img[y0:y1, x0:x1]
+        cropped = transformed_img[y0:y1, x0:x1] if self.scale or self.rotate else data_numpy[y0:y1, x0:x1] # [1080,1080]
 
         if self.task != 'get_sequences_for_tf':
             joints = np.array(self.db[image_file]['joints'], dtype=np.float32)
             joints_xy = joints[:, :2].copy()
 
-            ones = np.ones((joints_xy.shape[0], 1), dtype=np.float32)
-            hom = np.hstack([joints_xy, ones])  # (N,3)
+            if self.scale or self.rotate:
+                ones = np.ones((joints_xy.shape[0], 1), dtype=np.float32)
+                hom = np.hstack([joints_xy, ones])  # (N,3)
+                transformed_xy = (M @ hom.T).T  # (N,2)
+            else:
+                transformed_xy = joints_xy.copy()
 
-            transformed_xy = (M @ hom.T).T  # (N,2)
             transformed_xy -= np.array([x0, y0], dtype=np.float32)
+
+            # do_flip = np.random.rand() < self.flip_prob if self.flip else False
+            do_flip = True
+            if do_flip:
+                cropped = cv2.flip(cropped, 1)
+                transformed_xy[:, 0] = (CROP - 1) - transformed_xy[:, 0]
+
+                for a, b in self.flip_pairs:
+                    transformed_xy[[a, b]] = transformed_xy[[b, a]]
 
             valid = (
                     (transformed_xy[:, 0] >= 0) & (transformed_xy[:, 0] < CROP) &
                     (transformed_xy[:, 1] >= 0) & (transformed_xy[:, 1] < CROP)
             )
-            if False in valid:
-                self.out_of_scene += 1
 
         data_numpy = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
 
@@ -191,28 +206,29 @@ class JointsDataset(Dataset):
             cv2.circle(data_numpy, (int(x), int(y)), radius=5, color=(0, 255, 0), thickness=-1)
 
         cv2.imshow("Keypoints", data_numpy)
-        key = cv2.waitKey(0)  # �� ���� ����
-        if key == 27:  # Esc ������ ����
+        key = cv2.waitKey(0)
+        if key == 27:  # Esc
             cv2.destroyAllWindows()
         #
-        #
-        #
+
         out_w, out_h = self.cfg.MODEL.IMAGE_SIZE
         if (out_w, out_h) != (CROP, CROP):
             data_numpy = cv2.resize(data_numpy, (out_w, out_h))
-
-        if self.task != 'get_sequences_for_tf':
             scale_x = out_w / float(CROP)
             scale_y = out_h / float(CROP)
-            joints_xy *= np.array([scale_x, scale_y], dtype=np.float32)
 
-            joints_out = joints.copy()
-            joints_out[:, :2] = joints_xy
+        else:
+            scale_x = scale_y = 1.0
 
         data_numpy = data_numpy.transpose(2, 0, 1)  # CHW
         data_numpy = torch.from_numpy(data_numpy).float()
 
         if self.task != 'get_sequences_for_tf':
+            transformed_xy_scaled = transformed_xy * np.array([scale_x, scale_y], dtype=np.float32)
+
+            joints_out = joints.copy()
+            joints_out[:, :2] = transformed_xy_scaled
+
             target, target_weight = self.generate_target(joints_out)
             if target_weight.shape[0] == valid.shape[0]:
                 target_weight *= valid[:, None].astype(np.float32)
@@ -231,7 +247,7 @@ class JointsDataset(Dataset):
         if self.task == 'get_sequences_for_tf':
             return data_numpy, condition, image_file, video_idx, view_idx, max_frame
         else:
-            return data_numpy, target, target_weight, meta, self.out_of_scene
+            return data_numpy, target, target_weight, meta
 
     def select_data(self, db):
         db_selected = []
@@ -272,6 +288,7 @@ class JointsDataset(Dataset):
         :param joints_vis: [num_joints, 3]
         :return: target, target_weight(1: visible, 0: invisible)
         '''
+        self.sigma = np.random.uniform(1.0, 2.0)
         target_weight = np.ones((self.num_joints, 1), dtype=np.float32)
 
         assert self.target_type == 'gaussian', \

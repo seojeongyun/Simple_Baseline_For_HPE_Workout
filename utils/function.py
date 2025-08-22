@@ -44,108 +44,107 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     scaler = None if (not use_amp or use_bf16) else GradScaler()
     cnt = 0
-    for i, (input, target, target_weight, meta, out_of_scene) in tqdm(enumerate(train_loader), total=len(train_loader)):
-    # for i, (input, target, target_weight, meta) in enumerate(train_loader):
-        cnt += out_of_scene
-        # # measure data loading time
-        # data_time.update(time.time() - end)
-        # #
-        # optimizer.zero_grad()
-        # # switch to train mode
-        # model.train()
-        # #
-        # if config.USE_DDP:
-        #     input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-        #     target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-        #     target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-        #
-        # else:
-        #     input = input.cuda(int(config.GPUS), non_blocking=True)
-        #     target = target.cuda(int(config.GPUS), non_blocking=True)
-        #     target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
-        #
-        # # compute output
-        # # --- forward: toggle autocast on/off based on use_amp ---
-        # if config.USE_AMP:
-        #     # IN THIS CODE, USE ONLY FP16
-        #     # THIS IS BECAUSE NUMPY NOT SUPPORT BF16
-        #     with autocast(dtype=amp_dtype if not use_bf16 else torch.float16):
-        #         output = model(input)
-        #
-        # else:
-        #     output = model(input)
-        #
-        # # --- compute loss in FP32 for stable convergence ---
-        # loss = criterion(output.float(), target, target_weight)
-        #
-        # # --- backward + optimizer step ---
-        # # FP16 AMP path (requires GradScaler)
-        # if use_amp and not use_bf16:
-        #     scaler.scale(loss).backward()
-        #     scaler.step(optimizer)
-        #     scaler.update()
-        #
-        # # BF16 AMP or plain FP32 path
-        # else:
-        #     loss.backward()
-        #     optimizer.step()
-        # # measure accuracy and record loss
-        # losses.update(loss.item(), input.size(0))
-        #
-        # _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(),
-        #                                  target.detach().cpu().numpy(),
-        #                                  thr = config.ACC_THR)
-        # acc.update(avg_acc, cnt)
-        #
-        # # measure elapsed time
-        # batch_time.update(time.time() - end)
-        # end = time.time()
-        #
-        # if i % config.PRINT_FREQ == 0:
-        #     msg = 'Epoch: [{0}][{1}/{2}]\t' \
-        #           'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
-        #           'Speed {speed:.1f} samples/s\t' \
-        #           'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
-        #           'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
-        #           'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
-        #               epoch, i, len(train_loader), batch_time=batch_time,
-        #               speed=input.size(0)/batch_time.val,
-        #               data_time=data_time, loss=losses, acc=acc)
-        #     logger.info(msg)
-        #     #
-        #     save_checkpoint({
-        #         'state_dict': model.state_dict(),
-        #     }, is_best=False, output_dir=output_dir, is_save_during_epoch=True)
-        #     #
-        #     if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-        #         writer = writer_dict['writer']
-        #         global_steps = writer_dict['train_global_steps']
-        #         writer.add_scalar('train/loss', losses.val, global_steps)
-        #         writer.add_scalar('train/acc', acc.val, global_steps)
-        #         writer_dict['train_global_steps'] = global_steps + 1
-        #
-        #         result, ori, hm = plot_train_batch(config, input, output)
-        #         train_result = [result, ori, hm]
-        #         write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
-        #
-        #         if acc.val < 0.9:
-        #             result, ori, hm = plot_train_batch(config, input, output)
-        #             train_result = [result, ori, hm]
-        #             write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='lower_perf')
-        #
-        #         prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-        #         save_debug_images(config, input, meta, target, pred*4, output,
-        #                           prefix)
-        #
-        # if i % (config.PRINT_FREQ * 10) == 0:
-        #     acc_val = validate(config=config, val_loader=valid_loader, model=model,
-        #              criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
-        #              writer_dict=writer_dict, is_training=True)
-        #
-        #     acc_list.append(acc_val)
 
-    # return acc_list
-    return cnt
+    for i, (input, target, target_weight, meta) in enumerate(train_loader):
+        # measure data loading time
+        data_time.update(time.time() - end)
+        #
+        optimizer.zero_grad()
+        # switch to train mode
+        model.train()
+        #
+        if config.USE_DDP:
+            input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+            target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+            target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+
+        else:
+            input = input.cuda(int(config.GPUS), non_blocking=True)
+            target = target.cuda(int(config.GPUS), non_blocking=True)
+            target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
+
+        # compute output
+        # --- forward: toggle autocast on/off based on use_amp ---
+        if config.USE_AMP:
+            # IN THIS CODE, USE ONLY FP16
+            # THIS IS BECAUSE NUMPY NOT SUPPORT BF16
+            with autocast(dtype=amp_dtype if not use_bf16 else torch.float16):
+                output = model(input)
+
+        else:
+            output = model(input)
+
+        # --- compute loss in FP32 for stable convergence ---
+        loss = criterion(output.float(), target, target_weight)
+
+        # --- backward + optimizer step ---
+        # FP16 AMP path (requires GradScaler)
+        if use_amp and not use_bf16:
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+        # BF16 AMP or plain FP32 path
+        else:
+            loss.backward()
+            optimizer.step()
+        # measure accuracy and record loss
+        losses.update(loss.item(), input.size(0))
+
+        _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(),
+                                         target.detach().cpu().numpy(),
+                                         thr = config.ACC_THR)
+        acc.update(avg_acc, cnt)
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+
+        if i % config.PRINT_FREQ == 0:
+            msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                  'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                  'Speed {speed:.1f} samples/s\t' \
+                  'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                  'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                  'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
+                      epoch, i, len(train_loader), batch_time=batch_time,
+                      speed=input.size(0)/batch_time.val,
+                      data_time=data_time, loss=losses, acc=acc)
+            logger.info(msg)
+            #
+            save_checkpoint({
+                'state_dict': model.state_dict(),
+            }, is_best=False, output_dir=output_dir, is_save_during_epoch=True)
+            #
+            if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                writer = writer_dict['writer']
+                global_steps = writer_dict['train_global_steps']
+                writer.add_scalar('train/loss', losses.val, global_steps)
+                writer.add_scalar('train/acc', acc.val, global_steps)
+                writer_dict['train_global_steps'] = global_steps + 1
+
+                result, ori, hm = plot_train_batch(config, input, output)
+                train_result = [result, ori, hm]
+                write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
+
+                if acc.val < 0.9:
+                    result, ori, hm = plot_train_batch(config, input, output)
+                    train_result = [result, ori, hm]
+                    write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='lower_perf')
+
+                prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
+                save_debug_images(config, input, meta, target, pred*4, output,
+                                  prefix)
+
+        if i % (config.PRINT_FREQ * 10) == 0:
+            acc_val = validate(config=config, val_loader=valid_loader, model=model,
+                     criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
+                     writer_dict=writer_dict, is_training=True)
+
+            acc_list.append(acc_val)
+
+    return acc_list
+
 def validate(config, val_loader, model, criterion, epoch, output_dir,
              tb_log_dir, writer_dict=None, is_training=False):
     batch_time = AverageMeter()

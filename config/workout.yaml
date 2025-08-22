@@ -1,4 +1,4 @@
-ACC_THR: 0.2
+ACC_THR: 0.3
 CONFIG_FILE_PATH: ./configs/workout.yaml
 CUDNN:
   BENCHMARK: true
@@ -8,6 +8,38 @@ DATASET:
   DATASET: workout
   DATA_FORMAT: jpg
   FLIP: true
+  FLIP_JOINTS_PAIRS:
+  - !!python/tuple
+    - 1
+    - 2
+  - !!python/tuple
+    - 3
+    - 4
+  - !!python/tuple
+    - 5
+    - 6
+  - !!python/tuple
+    - 7
+    - 8
+  - !!python/tuple
+    - 9
+    - 10
+  - !!python/tuple
+    - 11
+    - 12
+  - !!python/tuple
+    - 13
+    - 14
+  - !!python/tuple
+    - 15
+    - 16
+  - !!python/tuple
+    - 18
+    - 19
+  - !!python/tuple
+    - 22
+    - 23
+  FLIP_PROB: 0.5
   GET_SEQUENCES_SET_PATH: /storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json
   HYBRID_JOINTS_TYPE: ''
   ROOT: /storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json
@@ -21,7 +53,7 @@ DATASET:
   SCALE_MAX: 1.25
   SCALE_MIN: 0.75
   SELECT_DATA: false
-  TRAIN_SET_PATH: ./json_files/train.json
+  TRAIN_SET_PATH: ./json_files/valid.json
   VALID_SET_PATH: ./json_files/valid.json
 DATA_DIR: ''
 DDP_OPTS:

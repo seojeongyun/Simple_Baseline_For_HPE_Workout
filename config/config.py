@@ -20,9 +20,10 @@ config.DATA_DIR = ''
 config.GPUS ='1'          # '0,1'
 config.WORKERS = 4
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
+# validation -> turn off data augmentation (rotate, scale, flip)
 #
 config.PRINT_FREQ = 50
-config.ACC_THR = 0.2
+config.ACC_THR = 0.3
 #
 config.USE_DDP = False   # True -> USE DDP   /   False -> USE single gpu
 config.USE_AMP = False
@@ -83,7 +84,8 @@ config.DATASET.ROOT_VALID_LABEL = '/storage/jysuh/fitness/fitness/validation/lab
 config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/image'
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
-config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
+# config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
@@ -93,6 +95,19 @@ config.DATASET.SELECT_DATA = False
 
 # training data augmentation
 config.DATASET.FLIP = True
+config.DATASET.FLIP_PROB = 0.5
+config.DATASET.FLIP_JOINTS_PAIRS =[
+    (1, 2),    # Left Eye / Right Eye
+    (3, 4),    # Left Ear / Right Ear
+    (5, 6),    # Left Shoulder / Right Shoulder
+    (7, 8),    # Left Elbow / Right Elbow
+    (9, 10),   # Left Wrist / Right Wrist
+    (11, 12),  # Left Hip / Right Hip
+    (13, 14),  # Left Knee / Right Knee
+    (15, 16),  # Left Ankle / Right Ankle
+    (18, 19),  # Left Palm / Right Palm
+    (22, 23),  # Left Foot / Right Foot
+]
 #
 config.DATASET.SCALE = True
 config.DATASET.ROTATE = True
