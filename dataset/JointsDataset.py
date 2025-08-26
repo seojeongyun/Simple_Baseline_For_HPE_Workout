@@ -202,13 +202,13 @@ class JointsDataset(Dataset):
         data_numpy = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
 
         # DEBUG
-        for (x, y) in transformed_xy:
-            cv2.circle(data_numpy, (int(x), int(y)), radius=5, color=(0, 255, 0), thickness=-1)
-
-        cv2.imshow("Keypoints", data_numpy)
-        key = cv2.waitKey(0)
-        if key == 27:  # Esc
-            cv2.destroyAllWindows()
+        # for (x, y) in transformed_xy:
+        #     cv2.circle(data_numpy, (int(x), int(y)), radius=5, color=(0, 255, 0), thickness=-1)
+        #
+        # cv2.imshow("Keypoints", data_numpy)
+        # key = cv2.waitKey(0)
+        # if key == 27:  # Esc
+        #     cv2.destroyAllWindows()
         #
 
         out_w, out_h = self.cfg.MODEL.IMAGE_SIZE

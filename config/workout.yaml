@@ -53,7 +53,7 @@ DATASET:
   SCALE_MAX: 1.25
   SCALE_MIN: 0.75
   SELECT_DATA: false
-  TRAIN_SET_PATH: ./json_files/valid.json
+  TRAIN_SET_PATH: ./json_files/train.json
   VALID_SET_PATH: ./json_files/valid.json
 DATA_DIR: ''
 DDP_OPTS:
@@ -109,7 +109,7 @@ MODEL:
   INIT_WEIGHTS: false
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar
   STYLE: pytorch
 OUTPUT_DIR: ./result
 PRINT_FREQ: 50
@@ -135,7 +135,7 @@ TRAIN:
   END_EPOCH: 10
   GAMMA1: 0.99
   GAMMA2: 0.0
-  LR: 0.0007
+  LR: 0.0008
   LR_FACTOR: 0.1
   LR_STEP:
   - 90

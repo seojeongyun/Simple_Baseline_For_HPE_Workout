@@ -20,7 +20,7 @@ class JointsMSELoss(nn.Module):
     def forward(self, output, target, target_weight):
         """
         output, target: [B, J, H, W]
-        target_weight: [B, J] ?? [B, J, 1] (float, 0/1)
+        target_weight: [B, J] or [B, J, 1] (float, 0/1)
         """
         eps = 1e-6
         B, J, H, W = output.shape

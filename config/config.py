@@ -64,7 +64,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
 
 config.MODEL.NUM_JOINTS = 24
@@ -84,8 +84,9 @@ config.DATASET.ROOT_VALID_LABEL = '/storage/jysuh/fitness/fitness/validation/lab
 config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/image'
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
-# config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
-config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
+#
+config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
+# config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
@@ -96,7 +97,7 @@ config.DATASET.SELECT_DATA = False
 # training data augmentation
 config.DATASET.FLIP = True
 config.DATASET.FLIP_PROB = 0.5
-config.DATASET.FLIP_JOINTS_PAIRS =[
+config.DATASET.FLIP_JOINTS_PAIRS = [
     (1, 2),    # Left Eye / Right Eye
     (3, 4),    # Left Ear / Right Ear
     (5, 6),    # Left Shoulder / Right Shoulder
@@ -121,7 +122,7 @@ config.TRAIN = edict()
 
 config.TRAIN.LR_FACTOR = 0.1
 config.TRAIN.LR_STEP = [90, 110]
-config.TRAIN.LR = 0.001 * 0.7 # 0.001
+config.TRAIN.LR = 0.001 * 0.8 # 0.001
 
 config.TRAIN.OPTIMIZER = 'adam'
 config.TRAIN.MOMENTUM = 0.9
