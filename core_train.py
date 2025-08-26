@@ -207,6 +207,8 @@ def main(rank):
     if config.TASK == 'train':
         for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
             acc_list = []
+            #
+            criterion.on_new_epoch(device=config.DDP_OPTS.GPU if config.USE_DDP else device)
             # train for one epoch
             train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
                                  final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)

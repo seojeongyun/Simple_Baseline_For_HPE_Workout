@@ -53,7 +53,7 @@ DATASET:
   SCALE_MAX: 1.25
   SCALE_MIN: 0.75
   SELECT_DATA: false
-  TRAIN_SET_PATH: ./json_files/train.json
+  TRAIN_SET_PATH: ./json_files/valid.json
   VALID_SET_PATH: ./json_files/valid.json
 DATA_DIR: ''
 DDP_OPTS:

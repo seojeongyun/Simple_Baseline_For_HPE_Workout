@@ -85,8 +85,8 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
-# config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
+# config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
