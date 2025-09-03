@@ -25,15 +25,7 @@ if __name__ == '__main__':
                 json_list_valid.append(path + '/' + json_files)
     # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
     #
-    #
-    # ========= For Debug ==========
-    # equipment_type_list = []
-    # bd_list = []
-    # furniture_list = []
-    # body_list = []
-    # body_idx_dict = {}
-    # counter = defaultdict(int)
-    # *-*-*-*-*-*- Collect json files from train dataset *-*-*-*-*-*-
+
     base_path = '/storage/jysuh/fitness/fitness/train/label'
 
     for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
@@ -68,48 +60,28 @@ if __name__ == '__main__':
     exercise_dict = {}
     counter = defaultdict(int)
 
+    coord_dict = {}
     # ===
     for json_file in tqdm(json_files_list, desc='...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
-            exercise = data['type_info']['exercise']
-            exercise_dict.setdefault(exercise, {'condition':[], 'First Time':True})
-            for condition_idx in range(len(data['type_info']['conditions'])):
-                if data['type_info']['conditions'][condition_idx]['condition'] not in exercise_dict[exercise]['condition'] and exercise_dict[exercise]['First Time']:
-                    exercise_dict[exercise]['condition'].append(data['type_info']['conditions'][condition_idx]['condition'])
-                elif data['type_info']['conditions'][condition_idx]['condition'] not in exercise_dict[exercise]['condition'] and exercise_dict[exercise]['First Time'] == False:
-                    raise ValueError('Stop')
-                else:
-                    continue
-            exercise_dict[exercise]['First Time'] = False
-
-    # with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/exercise_conditions.json', 'r') as f:
-    #     exercise_dict = json.load(f)
-    #
-    #
-    # JOINTS_DICT = {
-    # "눈": (1, 2),
-    # "귀": (3, 4),
-    # "어깨": (5, 6),
-    # "팔꿈치": (7, 8),
-    # "손목": (9, 10),
-    # "엉덩이": (11, 12),
-    # "무릎": (13, 14),
-    # "발목": (15, 16),
-    # "목": 17,
-    # "손바닥": (18, 19),
-    # "등": 20,
-    # "허리": 21,
-    # "발": (22, 23),
-    # }
-    #
-    # for exer_name in exercise_dict.keys():
-    #     for condition_idx in range(len(exercise_dict[exer_name]['condition'])):
-    #         condition_split = exercise_dict[exer_name]['condition'][condition_idx].split()
-    #         for joint_name in JOINTS_DICT.keys():
-    #             if joint_name in condition_split:
-    #                 exercise_dict[exer_name]['condition'][condition_idx] = {exercise_dict[exer_name]['condition'][condition_idx], joint_name}
+        #
+        for frame_idx in range(len(data['frames'])):
+            for view_idx in data['frames'][frame_idx].keys():
+                coord_list = []
+                head_x, head_y = 0, 0
+                for joint_idx, joint_name in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
+                    if joint_idx < 5:
+                        head_x += data['frames'][frame_idx][view_idx]['pts'][joint_name]['x']
+                        head_y += data['frames'][frame_idx][view_idx]['pts'][joint_name]['y']
+                    elif joint_idx == 5:
+                        head_x, head_y = head_x / 5, head_y / 5
+                        coord_list.append([head_x, head_y])
+                    else:
+                        coord_list.append([data['frames'][frame_idx][view_idx]['pts'][joint_name]['x'], data['frames'][frame_idx][view_idx]['pts'][joint_name]['y']])
 
 
+
+    #
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/exercise_conditions.json','w') as f:
         json.dump(exercise_dict, f)

@@ -18,7 +18,7 @@ config.LOG_DIR = ''
 config.DATA_DIR = ''
 #
 config.GPUS ='1'          # '0,1'
-config.WORKERS = 4
+config.WORKERS = 0
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
@@ -64,7 +64,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
 
 config.MODEL.NUM_JOINTS = 24
@@ -137,7 +137,7 @@ config.TRAIN.END_EPOCH = 10
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 8
+config.TRAIN.BATCH_SIZE = 4
 config.TRAIN.SHUFFLE = True
 config.TRAIN.USE_AMP = False
 # testing

@@ -201,6 +201,7 @@ def main(rank):
             pin_memory=True
         )
 
+
     best_perf = 0.0
     val_acc = 0.0
     best_model = False

@@ -43,7 +43,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     use_bf16 = use_amp and torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     scaler = None if (not use_amp or use_bf16) else GradScaler()
-    cnt = 0
+    val_iter = iter(valid_loader)
 
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
@@ -137,34 +137,36 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                                   prefix)
 
         if i % (config.PRINT_FREQ * 10) == 0:
-            acc_val = validate(config=config, val_loader=valid_loader, model=model,
+            acc_val, val_iter = validate(config=config, val_loader=valid_loader, model=model,
                      criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
-                     writer_dict=writer_dict, is_training=True)
+                     val_iter=val_iter, writer_dict=writer_dict, is_training=True)
 
             acc_list.append(acc_val)
 
     return acc_list
 
 def validate(config, val_loader, model, criterion, epoch, output_dir,
-             tb_log_dir, writer_dict=None, is_training=False):
+             tb_log_dir,  val_iter, writer_dict=None, is_training=False, ):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-    seen = 0
 
     # switch to evaluate mode
     model.eval()
 
-    idx = 0
-    end = time.time()
-
     # To check various test images in the tensorboard, we make randint value.
-    max_val_images = random.randint(2,10) if is_training else None
+    max_val_images = random.randint(2, 10) if is_training else len(val_loader)
 
     with torch.no_grad():
         end = time.time()
-        for i, (input, target, target_weight, meta) in enumerate(val_loader):
+        for i in range(max_val_images):
+            try:
+                input, target, target_weight, meta = next(val_iter)
+            except StopIteration:
+                val_iter = iter(val_loader)
+                input, target, target_weight, meta = next(val_iter)
+
             # measure data loading time
             data_time.update(time.time() - end)
             #
@@ -178,19 +180,12 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 target = target.cuda(int(config.GPUS), non_blocking=True)
                 target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
-            # early stop condition
-            # max_val_images = 20 if is_training else None
-
-            if max_val_images is not None and seen >= max_val_images:
-                break
-
             # compute output
             output = model(input)
 
             loss = criterion(output, target, target_weight)
 
             num_images = input.size(0)
-            seen += num_images
 
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
@@ -203,24 +198,8 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             batch_time.update(time.time() - end)
             end = time.time()
 
-            # c = meta['center'].numpy()
-            # s = meta['scale'].numpy()
-            # score = meta['score'].numpy()
-            #
-            # preds, maxvals = get_final_preds(
-            #     config, output.clone().cpu().numpy(), c, s)
-
-            # all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
-            # all_preds[idx:idx + num_images, :, 2:3] = maxvals
-            # # double check this all_boxes parts
-            # all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
-            # all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-            # all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
-            # all_boxes[idx:idx + num_images, 5] = score
-
-            #####
             # if i % config.PRINT_FREQ == 0:
-            if i % max_val_images == 0:
+            if (i + 1) % max_val_images == 0:
                 msg = 'Epoch: [{0}][{1}/{2}]\t' \
                       'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                       'Speed {speed:.1f} samples/s\t' \
@@ -276,7 +255,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             #     writer.add_scalar('valid/acc', acc.avg, global_step=epoch)
 
             # break
-        return acc
+        return acc, val_iter
 
 
 
@@ -345,7 +324,7 @@ def get_sequences(config, val_loader, model):
             sequences_data_to_tf[exercise][video_idx[0]][view_idx[0]].append(joints_val)
             sequences_data_to_tf[exercise][video_idx[0]]['condition'] = condition
         sequences_data_to_tf['max_frame'] = max_frame
-    return sequences_data_to_tf
+    return sequences_data_to_tf,
 
 
 def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):
