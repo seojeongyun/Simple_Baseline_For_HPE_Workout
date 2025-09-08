@@ -5,6 +5,7 @@ from glob import glob
 from tqdm import tqdm
 from collections import defaultdict
 
+
 if __name__ == '__main__':
     # *-*-*-*-*-*- Collect json files from validation dataset *-*-*-*-*-*-
     base_path = '/storage/jysuh/fitness/fitness/validation/label'
@@ -59,29 +60,37 @@ if __name__ == '__main__':
     json_files_list = json_list_train + json_list_valid
     exercise_dict = {}
     counter = defaultdict(int)
-
     coord_dict = {}
+    coord_list = []
     # ===
-    for json_file in tqdm(json_files_list, desc='...', leave=True):
+    head_key = ['Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear']
+    # for json_file in tqdm(json_files_list, desc='...', leave=True):
+    for json_file in tqdm(json_list_valid, desc='...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
+            exercise_name = data['type_info']['exercise']
+            coord_dict.setdefault(exercise_name, {})
         #
         for frame_idx in range(len(data['frames'])):
+            coord_dict[exercise_name].setdefault(frame_idx, {})
             for view_idx in data['frames'][frame_idx].keys():
-                coord_list = []
+                coord_dict[exercise_name][frame_idx].setdefault(view_idx, [])
+                coord_dict_for_a_frame = {}
                 head_x, head_y = 0, 0
                 for joint_idx, joint_name in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
-                    if joint_idx < 5:
+                    if joint_name in head_key:
                         head_x += data['frames'][frame_idx][view_idx]['pts'][joint_name]['x']
                         head_y += data['frames'][frame_idx][view_idx]['pts'][joint_name]['y']
-                    elif joint_idx == 5:
-                        head_x, head_y = head_x / 5, head_y / 5
-                        coord_list.append([head_x, head_y])
                     else:
-                        coord_list.append([data['frames'][frame_idx][view_idx]['pts'][joint_name]['x'], data['frames'][frame_idx][view_idx]['pts'][joint_name]['y']])
+                        coord_dict_for_a_frame[joint_name]= [data['frames'][frame_idx][view_idx]['pts'][joint_name]['x'], data['frames'][frame_idx][view_idx]['pts'][joint_name]['y']]
+                head_x, head_y = head_x / 5, head_y / 5
+                coord_dict_for_a_frame['head'] = [head_x, head_y]
 
-
-
+                coord_dict[exercise_name][frame_idx][view_idx] = coord_dict_for_a_frame
     #
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/exercise_conditions.json','w') as f:
-        json.dump(exercise_dict, f)
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/coord_data_valid.json', 'w') as f:
+        json.dump(coord_dict, f)
+
+# class make_embedding_vectors(nn.Module):
+#     def __init__(self, vocab, data):
+#         super(make_embedding_vectors, self).__init__()

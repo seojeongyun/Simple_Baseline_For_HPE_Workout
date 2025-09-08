@@ -139,7 +139,7 @@ if __name__ == '__main__':
                 #     print("Debug")
                 # elif len(data['frames']) == 0:
                 #     json_files_list.remove(json_file)
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info_debug.json', 'r') as f:
+    with open('/json_files/frame_sequences_w_type_info_debug.json', 'r') as f:
         json_files_list = json.load(f)
 
     max_frame = 0
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     #
     exercise_dict['max_frame'] = max_frame
     #
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json', 'w') as f:
+    with open('/json_files/frame_sequences_w_type_info.json', 'w') as f:
         json.dump(exercise_dict, f)
 
 
