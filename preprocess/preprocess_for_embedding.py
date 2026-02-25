@@ -2,8 +2,10 @@ import os
 import json
 
 from glob import glob
+import pickle
 from tqdm import tqdm
 from collections import defaultdict
+from collections import Counter
 
 
 if __name__ == '__main__':
@@ -58,23 +60,62 @@ if __name__ == '__main__':
     #
     # *-*-*-*-*-*- extracting data from json files *-*-*-*-*-*-
     json_files_list = json_list_train + json_list_valid
-    exercise_dict = {}
-    counter = defaultdict(int)
+
+    # debug
+    # max_val = 0
+    # for json_file in tqdm(json_files_list, desc='...', leave=True):
+    #     with open(json_file , 'r') as f:
+    #         data = json.load(f)
+    #     max_val = max(len(data['frames']), max_val)
+    #
+    # print() # valid -> max_frame = 17 frames // train -> max_frame = 21
+    ######
+
+    ##
+    video_counter = defaultdict(int)
     coord_dict = {}
-    coord_list = []
+    thr_num_files = 0
+    cnt = 0
+    save_condition = True
+    if save_condition:
+        with open('/home/jysuh/PycharmProjects/coord_embedding/dataset/embedder_dataset/condition_vocab.pkl',
+                  'rb') as f:
+            condition_vocab = pickle.load(f)
     # ===
     head_key = ['Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear']
-    # for json_file in tqdm(json_files_list, desc='...', leave=True):
     for json_file in tqdm(json_list_valid, desc='...', leave=True):
         with open(json_file , 'r') as f:
             data = json.load(f)
             exercise_name = data['type_info']['exercise']
+            # To make validation set, about a video per a wrkout
+            # if exercise_name in coord_dict.keys():
+            #     if len(coord_dict[exercise_name].keys()) == 1:
+            #         continue
+            # else:
+            #     coord_dict.setdefault(exercise_name, {})
+
             coord_dict.setdefault(exercise_name, {})
-        #
+
+            #
+            video_idx = video_counter[exercise_name]
+            video_counter[exercise_name] += 1
+            # coord_dict[exercise_name].setdefault(video_idx, {})
+
         for frame_idx in range(len(data['frames'])):
-            coord_dict[exercise_name].setdefault(frame_idx, {})
+            if len(data['frames'][frame_idx].keys()) != 5:
+                print()
             for view_idx in data['frames'][frame_idx].keys():
-                coord_dict[exercise_name][frame_idx].setdefault(view_idx, [])
+                coord_dict[exercise_name].setdefault(view_idx, {})
+                coord_dict[exercise_name][view_idx].setdefault(video_idx, {})
+                # 260226 add exercise condition
+                if save_condition:
+                    coord_dict[exercise_name][view_idx][video_idx]['conditions'] = []
+                    for i in range(len(data['type_info']['conditions'])):
+                        condition = condition_vocab[data['type_info']['conditions'][i]['condition']]
+                        value = int(data['type_info']['conditions'][i]['value'])
+                        coord_dict[exercise_name][view_idx][video_idx]['conditions'].append([condition, value])
+                # ----------------------------------------------------------
+                coord_dict[exercise_name][view_idx][video_idx].setdefault(frame_idx, {})
                 coord_dict_for_a_frame = {}
                 head_x, head_y = 0, 0
                 for joint_idx, joint_name in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
@@ -84,13 +125,29 @@ if __name__ == '__main__':
                     else:
                         coord_dict_for_a_frame[joint_name]= [data['frames'][frame_idx][view_idx]['pts'][joint_name]['x'], data['frames'][frame_idx][view_idx]['pts'][joint_name]['y']]
                 head_x, head_y = head_x / 5, head_y / 5
-                coord_dict_for_a_frame['head'] = [head_x, head_y]
+                coord_dict_for_a_frame['Head'] = [int(head_x), int(head_y)]
+                coord_dict[exercise_name][view_idx][video_idx][frame_idx] = coord_dict_for_a_frame
 
-                coord_dict[exercise_name][frame_idx][view_idx] = coord_dict_for_a_frame
-    #
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/coord_data_valid.json', 'w') as f:
+    with open('/home/jysuh/PycharmProjects/coord_embedding/dataset/embedder_dataset/valid_contained_condition.json', 'w') as f:
         json.dump(coord_dict, f)
 
-# class make_embedding_vectors(nn.Module):
-#     def __init__(self, vocab, data):
-#         super(make_embedding_vectors, self).__init__()
+
+cnt = 0
+for exer in coord_dict.keys():
+    for vid in coord_dict[exer].keys():
+        for frame in coord_dict[exer][vid].keys():
+            for view in coord_dict[exer][vid][frame].keys():
+                cnt += 1
+
+cnt = 0
+for exercise_name in coord_dict:
+    for view_idx in coord_dict[exercise_name]:
+        for video_idx in coord_dict[exercise_name][view_idx]:
+            cnt += 1
+
+# orig = 188035
+# now = 187895
+# diff = 140
+
+# only train json file -> 34468
+# only valid json file ->

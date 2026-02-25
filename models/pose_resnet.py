@@ -242,6 +242,7 @@ class PoseResNet(nn.Module):
         x = self.conv1(x) # x.shape is torch.Size([4, 64, 128, 128])
         x = self.bn1(x)
         x = self.relu(x)
+        print('Activation_val: {}'.format(x))
         x = self.maxpool(x) # x.shape is torch.Size([4, 64, 64, 64])
 
         x = self.layer1(x) # x.shape is torch.Size([4, 256, 64, 64])

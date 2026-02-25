@@ -109,7 +109,7 @@ MODEL:
   INIT_WEIGHTS: false
   NAME: pose_resnet
   NUM_JOINTS: 24
-  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint.pth.tar
+  PRETRAINED: /storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar
   STYLE: pytorch
 OUTPUT_DIR: ./result
 PRINT_FREQ: 50
@@ -129,7 +129,7 @@ TEST:
   SHUFFLE: true
   USE_GT_BBOX: false
 TRAIN:
-  BATCH_SIZE: 4
+  BATCH_SIZE: 8
   BEGIN_EPOCH: 0
   CHECKPOINT: ''
   END_EPOCH: 10
@@ -148,5 +148,5 @@ TRAIN:
   USE_AMP: false
   WD: 0.0001
 USE_AMP: false
-USE_DDP: true
+USE_DDP: false
 WORKERS: 0

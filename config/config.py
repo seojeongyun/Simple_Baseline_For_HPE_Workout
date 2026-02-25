@@ -64,7 +64,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint.pth.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
 
 config.MODEL.NUM_JOINTS = 24
@@ -137,7 +137,7 @@ config.TRAIN.END_EPOCH = 10
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 4
+config.TRAIN.BATCH_SIZE = 8
 config.TRAIN.SHUFFLE = True
 config.TRAIN.USE_AMP = False
 # testing
