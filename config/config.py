@@ -22,7 +22,7 @@ config.WORKERS = 0
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
-config.PRINT_FREQ = 50
+config.PRINT_FREQ = 2000
 config.ACC_THR = 0.3
 #
 config.USE_DDP = False   # True -> USE DDP   /   False -> USE single gpu
@@ -63,8 +63,9 @@ MODEL_EXTRAS = {
 # common params for NETWORK
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
-config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
+config.MODEL.INIT_WEIGHTS = True   # True / False
+config.MODEL.PRETRAINED = False
+# '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
 
 config.MODEL.NUM_JOINTS = 24
@@ -85,7 +86,7 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-config.DATASET.TRAIN_SET_PATH= './json_files/train.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/train_.json'
 # config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
@@ -95,7 +96,7 @@ config.DATASET.HYBRID_JOINTS_TYPE = ''
 config.DATASET.SELECT_DATA = False
 
 # training data augmentation
-config.DATASET.FLIP = True
+config.DATASET.FLIP = False
 config.DATASET.FLIP_PROB = 0.5
 config.DATASET.FLIP_JOINTS_PAIRS = [
     (1, 2),    # Left Eye / Right Eye
@@ -110,8 +111,8 @@ config.DATASET.FLIP_JOINTS_PAIRS = [
     (22, 23),  # Left Foot / Right Foot
 ]
 #
-config.DATASET.SCALE = True
-config.DATASET.ROTATE = True
+config.DATASET.SCALE = False # True
+config.DATASET.ROTATE = False # True
 #
 config.DATASET.ROT_FACTOR_MAX = 30
 config.DATASET.SCALE_MAX = 1.25
@@ -145,6 +146,10 @@ config.TEST = edict()
 
 # size of images for each device
 config.TEST.BATCH_SIZE = 4 if config.TASK != 'get_sequences_for_tf' else 1
+
+# test type
+config.TEST.FULL_EVAL = True # True -> Evaluation for all eval dataset, False -> for some eval dataset
+
 # Test Model Epoch
 config.TEST.FLIP_TEST = False
 config.TEST.POST_PROCESS = True
@@ -159,7 +164,7 @@ config.TEST.BBOX_THRE = 1.0
 config.TEST.MODEL_FILE = ''
 config.TEST.IMAGE_THRE = 0.0
 config.TEST.NMS_THRE = 1.0
-config.TEST.SHUFFLE = True if config.TASK != 'get_sequences_for_tf' else False
+config.TEST.SHUFFLE = False # True if config.TASK != 'get_sequences_for_tf' else False
 
 # debug
 config.DEBUG = edict()
@@ -235,14 +240,11 @@ def update_dir(model_dir, log_dir, data_dir):
     if data_dir:
         config.DATA_DIR = data_dir
 
-    config.DATASET.ROOT = os.path.join(
-            config.DATA_DIR, config.DATASET.ROOT)
+    config.DATASET.ROOT = os.path.join(config.DATA_DIR, config.DATASET.ROOT)
 
-    config.TEST.COCO_BBOX_FILE = os.path.join(
-            config.DATA_DIR, config.TEST.COCO_BBOX_FILE)
+    config.TEST.COCO_BBOX_FILE = os.path.join(config.DATA_DIR, config.TEST.COCO_BBOX_FILE)
 
-    config.MODEL.PRETRAINED = os.path.join(
-            config.DATA_DIR, config.MODEL.PRETRAINED)
+    config.MODEL.PRETRAINED = os.path.join(config.DATA_DIR, config.MODEL.PRETRAINED)
 
 
 def get_model_name(cfg):
