@@ -27,7 +27,6 @@ from utils.transforms import flip_back
 from utils.vis import save_debug_images
 from utils.events import NCOLS, load_yaml, write_tbimg
 from torch.cuda.amp import autocast, GradScaler
-from utils.utils import save_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -112,10 +111,6 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                       data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
             #
-            save_checkpoint({
-                'state_dict': model.state_dict(),
-            }, is_best=False, output_dir=output_dir, is_save_during_epoch=True)
-            #
             if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
                 writer = writer_dict['writer']
                 global_steps = writer_dict['train_global_steps']
@@ -136,14 +131,14 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
 
-        if i % (config.PRINT_FREQ * 10) == 0:
-            acc_val, val_iter = validate(config=config, val_loader=valid_loader, model=model,
-                     criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
-                     val_iter=val_iter, writer_dict=writer_dict, is_training=True)
-
-            acc_list.append(acc_val)
-
-    return acc_list
+    start_time = time.time()
+    acc_val, val_iter = validate(config=config, val_loader=valid_loader, model=model,
+             criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
+             val_iter=val_iter, writer_dict=writer_dict, is_training=True)
+    end_time = time.time()
+    epoch_time = end_time - start_time
+    print(f"[Epoch {epoch}] Valid Time: {epoch_time:.2f} sec")
+    return acc_val
 
 def validate(config, val_loader, model, criterion, epoch, output_dir,
              tb_log_dir,  val_iter, writer_dict=None, is_training=False, ):
@@ -151,7 +146,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-
+    FULL_EVAL = config.TEST.FULL_EVAL
     # switch to evaluate mode
     model.eval()
 
@@ -160,71 +155,132 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
     with torch.no_grad():
         end = time.time()
-        for i in range(max_val_images):
-            try:
-                input, target, target_weight, meta = next(val_iter)
-            except StopIteration:
-                val_iter = iter(val_loader)
-                input, target, target_weight, meta = next(val_iter)
+        if not FULL_EVAL:
+            for i in range(max_val_images):
+                try:
+                    input, target, target_weight, meta = next(val_iter)
+                except StopIteration:
+                    val_iter = iter(val_loader)
+                    input, target, target_weight, meta = next(val_iter)
 
-            # measure data loading time
-            data_time.update(time.time() - end)
-            #
-            if config.USE_DDP:
-                input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-                target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-                target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                # measure data loading time
+                data_time.update(time.time() - end)
+                #
+                if config.USE_DDP:
+                    input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                    target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                    target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
 
-            else:
-                input = input.cuda(int(config.GPUS), non_blocking=True)
-                target = target.cuda(int(config.GPUS), non_blocking=True)
-                target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
+                else:
+                    input = input.cuda(int(config.GPUS), non_blocking=True)
+                    target = target.cuda(int(config.GPUS), non_blocking=True)
+                    target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
-            # compute output
-            output = model(input)
+                # compute output
+                output = model(input)
 
-            loss = criterion(output, target, target_weight)
+                loss = criterion(output, target, target_weight)
 
-            num_images = input.size(0)
+                num_images = input.size(0)
 
-            # measure accuracy and record loss
-            losses.update(loss.item(), num_images)
-            _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
-                                             target.cpu().numpy(), thr = config.ACC_THR)
+                # measure accuracy and record loss
+                losses.update(loss.item(), num_images)
+                _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
+                                                 target.cpu().numpy(), thr = config.ACC_THR)
 
-            acc.update(avg_acc, cnt)
+                acc.update(avg_acc, cnt)
 
-            # measure elapsed time
-            batch_time.update(time.time() - end)
-            end = time.time()
+                # measure elapsed time
+                batch_time.update(time.time() - end)
+                end = time.time()
 
-            # if i % config.PRINT_FREQ == 0:
-            if (i + 1) % max_val_images == 0:
-                msg = 'Epoch: [{0}][{1}/{2}]\t' \
-                      'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
-                      'Speed {speed:.1f} samples/s\t' \
-                      'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
-                      'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
-                      'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
-                    0, i, len(val_loader), batch_time=batch_time,
-                    speed=input.size(0) / batch_time.val,
-                    data_time=data_time, loss=losses, acc=acc)
-                logger.info(msg)
+                # if i % config.PRINT_FREQ == 0:
+                if (i + 1) % max_val_images == 0:
+                    msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                          'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                          'Speed {speed:.1f} samples/s\t' \
+                          'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                          'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                          'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
+                        0, i, len(val_loader), batch_time=batch_time,
+                        speed=input.size(0) / batch_time.val,
+                        data_time=data_time, loss=losses, acc=acc)
+                    logger.info(msg)
 
-                if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-                    writer = writer_dict['writer']
-                    global_steps = writer_dict['train_global_steps']
-                    writer.add_scalar('val/loss', losses.val, global_steps)
-                    writer.add_scalar('val/acc', acc.val, global_steps)
-                    writer_dict['train_global_steps'] = global_steps + 1
+                    if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                        writer = writer_dict['writer']
+                        global_steps = writer_dict['train_global_steps']
+                        writer.add_scalar('val/loss', losses.val, global_steps)
+                        writer.add_scalar('val/acc', acc.val, global_steps)
+                        writer_dict['train_global_steps'] = global_steps + 1
 
-                    result, ori, hm = plot_train_batch(config, input, output)
-                    valid_result = [result, ori, hm]
-                    write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
+                        result, ori, hm = plot_train_batch(config, input, output)
+                        valid_result = [result, ori, hm]
+                        write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
 
-                    prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
-                    save_debug_images(config, input, meta, target, pred * 4, output,
-                                      prefix)
+                        prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
+                        save_debug_images(config, input, meta, target, pred * 4, output,
+                                          prefix)
+
+        else:
+            for i, (input, target, target_weight, meta) in enumerate(val_loader):
+                # measure data loading time
+                data_time.update(time.time() - end)
+                #
+                if config.USE_DDP:
+                    input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                    target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+                    target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
+
+                else:
+                    input = input.cuda(int(config.GPUS), non_blocking=True)
+                    target = target.cuda(int(config.GPUS), non_blocking=True)
+                    target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
+
+                # compute output
+                output = model(input)
+
+                loss = criterion(output, target, target_weight)
+
+                num_images = input.size(0)
+
+                # measure accuracy and record loss
+                losses.update(loss.item(), num_images)
+                _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
+                                                 target.cpu().numpy(), thr=config.ACC_THR)
+
+                acc.update(avg_acc, cnt)
+
+                # measure elapsed time
+                batch_time.update(time.time() - end)
+                end = time.time()
+
+                if i % config.PRINT_FREQ == 0:
+                    msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                          'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                          'Speed {speed:.1f} samples/s\t' \
+                          'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                          'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                          'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
+                        0, i, len(val_loader), batch_time=batch_time,
+                        speed=input.size(0) / batch_time.val,
+                        data_time=data_time, loss=losses, acc=acc)
+                    logger.info(msg)
+
+                    if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                        writer = writer_dict['writer']
+                        global_steps = writer_dict['valid_global_steps']
+                        writer.add_scalar('val/loss', losses.val, global_steps)
+                        writer.add_scalar('val/acc', acc.val, global_steps)
+                        writer_dict['valid_global_steps'] = global_steps + 1
+
+                        result, ori, hm = plot_train_batch(config, input, output)
+                        valid_result = [result, ori, hm]
+                        write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
+
+                        prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
+                        save_debug_images(config, input, meta, target, pred * 4, output,
+                                          prefix)
 
                 ####
             # if i % config.PRINT_FREQ == 0:
@@ -255,7 +311,10 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
             #     writer.add_scalar('valid/acc', acc.avg, global_step=epoch)
 
             # break
+    if not FULL_EVAL:
         return acc, val_iter
+    else:
+        return acc, None
 
 
 
