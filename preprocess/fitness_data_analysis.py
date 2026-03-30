@@ -9,8 +9,11 @@ from tqdm import tqdm
 
 if __name__ == '__main__':
     import glob
-
-    base_path = '/storage/jysuh/fitness/fitness/validation/label'
+    type = 'train' # or 'valid
+    if type == 'train':
+        base_path = '/storage/jysuh/fitness/fitness/train/label'
+    else:
+        base_path = '/storage/jysuh/fitness/fitness/validation/label'
 
     assert os.path.exists(base_path)
 
@@ -106,7 +109,7 @@ if __name__ == '__main__':
                             # data_dict[img_path]['joints_vis'] = joints_vis
                             # del data_dict[img_path]['pts']
 
-    with open('/json_files/valid.json', 'w', encoding='utf-8') as f:
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/train_.json', 'w', encoding='utf-8') as f:
         json.dump(data_dict, f, ensure_ascii=False, indent=4)
     # ===== ===== ===== =====
 
