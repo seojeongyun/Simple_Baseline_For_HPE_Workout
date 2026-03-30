@@ -13,7 +13,9 @@ import os
 import pprint
 import shutil
 import json
-
+import random
+import numpy as np
+import time
 import torch
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
@@ -32,7 +34,7 @@ from utils.function import train
 from utils.function import validate
 from utils.function import get_sequences
 from utils.utils import get_optimizer
-from utils.utils import save_checkpoint
+
 from utils.utils import create_logger
 from easydict import EasyDict as edict
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -94,7 +96,33 @@ def gen_config(config_file):
     with open(config_file, 'w') as f:
         yaml.dump(dict(cfg), f, default_flow_style=False)
 
+
+def set_seed(seed: int = 42):
+    # Python random
+    random.seed(seed)
+
+    # numpy
+    np.random.seed(seed)
+
+    # PyTorch (CPU)
+    torch.manual_seed(seed)
+
+    # PyTorch (GPU)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # multi-GPU
+
+    # CUDA ?? determinism ??
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    # (??) ?? deterministic (?? ??? ? ??)
+    torch.use_deterministic_algorithms(True)
+
+    # (??) hashing ??
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
 def main(rank):
+    set_seed(42)
     gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/workout.yaml')
     #
     if config.USE_DDP:
@@ -200,41 +228,34 @@ def main(rank):
             num_workers=config.WORKERS,
             pin_memory=True
         )
-
-
     best_perf = 0.0
-    val_acc = 0.0
-    best_model = False
     if config.TASK == 'train':
         for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
+            #
             acc_list = []
             #
             criterion.on_new_epoch(device=config.DDP_OPTS.GPU if config.USE_DDP else device)
+
+            start_time = time.time()
             # train for one epoch
-            train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+            val_acc = train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
                                  final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)
 
-            # if perf_indicator > best_perf:
-            #     best_perf = perf_indicator
-            #     best_model = True
-            # else:
-            #     best_model = False
+            end_time = time.time()
+            epoch_time = end_time - start_time
+            print(f"[Epoch {epoch}] Train Time: {epoch_time:.2f} sec")
+
+            if val_acc > best_perf:
+                best_perf = val_acc
+                best_model = True
+            else:
+                best_model = False
+
+            if best_model:
+                if not config.MODEL.PRETRAINED:
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, 'not_finetune.pth.tar'))
 
             logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-            # save_checkpoint({
-            #     'epoch': epoch + 1,
-            #     'model': get_model_name(config),
-            #     'state_dict': model.state_dict(),
-            #     'perf': perf_indicator,
-            #     'optimizer': optimizer.state_dict(),
-            # }, best_model, final_output_dir)
-            if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-                save_checkpoint({
-                    'epoch': epoch + 1,
-                    'model': get_model_name(config),
-                    'state_dict': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                }, best_model, final_output_dir)
 
             lr_scheduler.step()
         #
