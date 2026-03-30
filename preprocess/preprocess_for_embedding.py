@@ -99,7 +99,6 @@ if __name__ == '__main__':
             #
             video_idx = video_counter[exercise_name]
             video_counter[exercise_name] += 1
-            # coord_dict[exercise_name].setdefault(video_idx, {})
 
         for frame_idx in range(len(data['frames'])):
             if len(data['frames'][frame_idx].keys()) != 5:

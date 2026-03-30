@@ -74,11 +74,3 @@ def get_optimizer(cfg, model):
         )
 
     return optimizer
-
-
-def save_checkpoint(states, is_best, output_dir,
-                    filename='checkpoint.pth.tar', is_save_during_epoch=False):
-    torch.save(states, os.path.join(output_dir, filename)) if not is_save_during_epoch else torch.save(states, os.path.join(output_dir, 'checkpoint_during_epoch.pth.tar'))
-    if is_best and 'state_dict' in states:
-        torch.save(states['state_dict'],
-                   os.path.join(output_dir, 'model_best.pth.tar'))
