@@ -74,7 +74,7 @@ class JointsDataset(Dataset):
         if self.task == 'train':
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r', encoding="utf-8") as f:
                 db = json.load(f)
-
+                # the number of img path in db: 2696768
             img_path_list = []
 
             for _, key in enumerate(tqdm(db.keys(), desc="get train data from train.json", leave=True)):
