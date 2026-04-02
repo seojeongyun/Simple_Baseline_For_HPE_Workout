@@ -85,10 +85,14 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
             for batch_idx in range(input.shape[0]):
                 img = input[batch_idx].transpose(2, 1, 0)
                 img = img.astype(np.uint8)
+                plt.figure()
+                plt.imshow(img)
                 for y, x in coords[batch_idx]:
                     y, x = y.float() / 256 * 1080, x.float() / 256 * 1920
                     plt.scatter(x, y)
-                plt.imshow(img)
+                plt.axis('off')
+                plt.show()
+
 
 
 
