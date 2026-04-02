@@ -73,30 +73,25 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         else:
             output = model(input)
 
-        # extract coordinate of joints
+        # extract joint coordinates
         flatten = output.detach().cpu().reshape(config.TRAIN.BATCH_SIZE, config.MODEL.NUM_JOINTS, -1).argmax(axis=2)
         y, x = torch.div(flatten, 256, rounding_mode='floor'), flatten % POSE_RESNET.HEATMAP_SIZE[0]
         coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
 
-        # DEBUG
+        # DEBUG: Visualization of extracted joint coordinates on the input image
         import matplotlib.pyplot as plt
         if isinstance(input, torch.Tensor):
-            input = input.cpu().detach().numpy()
+            input_img = input.cpu().detach().numpy()
             for batch_idx in range(input.shape[0]):
-                img = input[batch_idx].transpose(2, 1, 0)
+                img = input_img[batch_idx].transpose(1, 2, 0)
                 img = img.astype(np.uint8)
                 plt.figure()
                 plt.imshow(img)
                 for y, x in coords[batch_idx]:
-                    y, x = y.float() / 256 * 1080, x.float() / 256 * 1920
-                    plt.scatter(x, y)
+                    y, x = y.float() / 256 * 1024, x.float() / 256 * 1024
+                    plt.scatter(y, x)
                 plt.axis('off')
                 plt.show()
-
-
-
-
-
         # -------
 
 
