@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 if __name__ == '__main__':
     import glob
-    type = 'train' # or 'valid
+    type = 'valid' # or 'valid
     if type == 'train':
         base_path = '/storage/jysuh/fitness/fitness/train/label'
     else:
@@ -33,6 +33,9 @@ if __name__ == '__main__':
             for _, json_file in enumerate(json_files):
                 if '3d' not in (json_file):
                     json_list.append(json_file) # 34468
+
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/valid.json', 'w', encoding='utf-8') as f:
+        json.dump(json_list, f, ensure_ascii=False, indent=4)
     # ===== ===== ===== ===== =====
 
 
@@ -85,29 +88,18 @@ if __name__ == '__main__':
                         cnt += 1
                         if img_path not in data_dict.keys():
                             jnt += 1
-                            # data_dict[img_path]['pts'] = data['frames'][frame_idx][view_idx]['pts']
-                            # data_dict['pts'].append(data['frames'][frame_idx][view_idx]['pts'])
-                            # data_dict['img_path'].append(os.path.join(exercise_path, data['frames'][frame_idx][view_idx]['img_key']))
 
                             # JOINTS
                             joints = []
                             # joints_vis = []
                             #
                             data_dict.setdefault(img_path, {'joints': None})
-                            # data_dict.setdefault(img_path, {'joints_vis': None})
-                            # data_dict[img_path].setdefault('joints', None)
-                            # data_dict[img_path].setdefault('joints_vis', None)
                             #
                             for joint_idx, joint in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
                                 joint_pts = [data['frames'][frame_idx][view_idx]['pts'][joint]['x'], data['frames'][frame_idx][view_idx]['pts'][joint]['y'], 0.]
                                 joints.append(joint_pts)
 
-                                # joint_visibility = [1, 1]
-                                # joints_vis.append(joint_visibility)
-
                             data_dict[img_path]['joints'] = joints
-                            # data_dict[img_path]['joints_vis'] = joints_vis
-                            # del data_dict[img_path]['pts']
 
     with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/train_.json', 'w', encoding='utf-8') as f:
         json.dump(data_dict, f, ensure_ascii=False, indent=4)

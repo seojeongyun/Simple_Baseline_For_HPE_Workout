@@ -22,7 +22,7 @@ config.WORKERS = 0
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
-config.PRINT_FREQ = 2000
+config.PRINT_FREQ = 2000                                                          ##### PRINT_FREQ
 config.ACC_THR = 0.3
 #
 config.USE_DDP = False   # True -> USE DDP   /   False -> USE single gpu
@@ -63,8 +63,9 @@ MODEL_EXTRAS = {
 # common params for NETWORK
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
-config.MODEL.INIT_WEIGHTS = True   # True / False
-config.MODEL.PRETRAINED = False
+config.MODEL.INIT_WEIGHTS = False   # True / False
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+# '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
 
@@ -86,9 +87,9 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-config.DATASET.TRAIN_SET_PATH= './json_files/train_.json'
-# config.DATASET.TRAIN_SET_PATH= './json_files/valid.json' # To debug
-config.DATASET.VALID_SET_PATH= './json_files/valid.json'
+# config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
+config.DATASET.VALID_SET_PATH= './json_files/valid_img_paths.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
 config.DATASET.DATA_FORMAT = 'jpg'
@@ -168,6 +169,7 @@ config.TEST.SHUFFLE = False # True if config.TASK != 'get_sequences_for_tf' else
 
 # debug
 config.DEBUG = edict()
+config.DEBUG.VISUALIZATION = False
 config.DEBUG.DEBUG = False
 config.DEBUG.SAVE_BATCH_IMAGES_GT = False
 config.DEBUG.SAVE_BATCH_IMAGES_PRED = False

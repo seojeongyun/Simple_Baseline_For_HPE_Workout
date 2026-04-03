@@ -77,7 +77,7 @@ class JointsDataset(Dataset):
                 # the number of img path in db: 2696768
             img_path_list = []
 
-            for _, key in enumerate(tqdm(db.keys(), desc="get train data from train.json", leave=True)):
+            for _, key in enumerate(tqdm(db.keys(), desc="get train data from train_img_paths.json", leave=True)):
                 img_path_list.append(key)
 
             return img_path_list, db
@@ -88,7 +88,7 @@ class JointsDataset(Dataset):
 
             img_path_list = []
 
-            for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid.json", leave=True)):
+            for _, key in enumerate(tqdm(db.keys(), desc="get valid data from valid_img_paths.json", leave=True)):
                 img_path_list.append(key)
 
             return img_path_list, db
