@@ -19,6 +19,7 @@ import torch
 import torch.distributed as dist
 
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 from collections import defaultdict
 from config.config import get_model_name, POSE_RESNET
 from core.evaluate import accuracy
@@ -79,20 +80,20 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
         coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
 
         # DEBUG: Visualization of extracted joint coordinates on the input image
-        import matplotlib.pyplot as plt
-        if isinstance(input, torch.Tensor):
-            input_img = input.cpu().detach().numpy()
-            for batch_idx in range(input.shape[0]):
-                img = input_img[batch_idx].transpose(1, 2, 0)
-                img = img.astype(np.uint8)
-                plt.figure()
-                plt.imshow(img)
-                for y, x in coords[batch_idx]:
-                    y, x = y.float() / 256 * 1024, x.float() / 256 * 1024
-                    plt.scatter(y, x)
-                plt.axis('off')
-                plt.show()
-        # -------
+        if config.DEBUG.VISUALIZATION:
+            if isinstance(input, torch.Tensor):
+                input_img = input.cpu().detach().numpy()
+                for batch_idx in range(input.shape[0]):
+                    img = input_img[batch_idx].transpose(1, 2, 0)
+                    img = img.astype(np.uint8)
+                    plt.figure()
+                    plt.imshow(img)
+                    for x, y in coords[batch_idx]:
+                        x, y = x.float() / 256 * 1024, y.float() / 256 * 1024
+                        plt.scatter(x, y)
+                    plt.axis('off')
+                    plt.show()
+        # ---------- DEBUG ----------
 
 
         # --- compute loss in FP32 for stable convergence ---
@@ -139,15 +140,31 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                 writer.add_scalar('train/loss', losses.val, global_steps)
                 writer.add_scalar('train/acc', acc.val, global_steps)
                 writer_dict['train_global_steps'] = global_steps + 1
+                #
+                # visualization exatracted joint coords on original image
+                if isinstance(input, torch.Tensor):
+                    input_img = input.cpu().detach().numpy()
+                    img = input_img[0].transpose(1, 2, 0)
+                    img = img.astype(np.uint8)
+                    for x, y in coords[0]:
+                        x = int(x.item() / 256 * 1024)
+                        y = int(y.item() / 256 * 1024)
+                        y1 = max(0, y - 10)
+                        y2 = min(img.shape[0], y + 10)
+                        x1 = max(0, x - 10)
+                        x2 = min(img.shape[1], x + 10)
+                        img[y1:y2, x1:x2] = np.array([255, 0, 0], dtype=np.uint8)
+                    img_chw = np.transpose(img, (2, 0, 1))  # HWC -> CHW
+                    write_tbimg(config, writer_dict['writer'], imgs=img_chw, step=i, type='vis_joint_coords')
 
                 result, ori, hm = plot_train_batch(config, input, output)
                 train_result = [result, ori, hm]
-                write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='train')
+                write_tbimg(config, writer_dict['writer'], imgs=train_result, step=i, type='train')
 
                 if acc.val < 0.9:
                     result, ori, hm = plot_train_batch(config, input, output)
                     train_result = [result, ori, hm]
-                    write_tbimg(config, writer_dict['writer'], imgs=train_result, step=epoch, type='lower_perf')
+                    write_tbimg(config, writer_dict['writer'], imgs=train_result, step=i, type='lower_perf')
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
                 save_debug_images(config, input, meta, target, pred*4, output,
