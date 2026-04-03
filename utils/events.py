@@ -34,6 +34,9 @@ def write_tbimg(config, tblogger, imgs, step, type='train'):
                 tblogger.add_image(f'train_vis/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'train_vis/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
 
+    elif type == 'vis_joint_coords':
+        tblogger.add_image(f'train_vis/vis_joint_coords', imgs, step + 1, dataformats='CHW')
+
     elif type == 'validation':
         for idx, img in enumerate(imgs[0]):
             cnt += 1
