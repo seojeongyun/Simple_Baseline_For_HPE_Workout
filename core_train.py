@@ -268,8 +268,10 @@ def main(rank):
             if best_model:
                 if not config.MODEL.PRETRAINED:
                     torch.save(model.state_dict(),os.path.join(final_output_dir, 'not_finetune.pth.tar'))
+                if config.MODEL.PRETRAINED:
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, 'finetune.pth.tar'))
 
-            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+                logger.info('=> saving checkpoint to {}'.format(final_output_dir))
 
             lr_scheduler.step()
         #
