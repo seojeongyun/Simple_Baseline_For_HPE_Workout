@@ -208,26 +208,40 @@ def main(rank):
                 num_workers=config.WORKERS,
                 pin_memory=True
             )
+    if config.TASK != 'append_pred_to_label_json_file':
+        valid_dataset = JointsDataset(cfg=config,
+                             root=config.DATASET.ROOT_VALID_LABEL,
+                             task='validation' if config.TASK == 'train' else config.TASK,
+                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
+        if config.USE_DDP:
+            valid_sampler = DistributedSampler(dataset=valid_dataset, shuffle=True)
+            batch_sampler_valid = torch.utils.data.BatchSampler(valid_sampler, config.TEST.BATCH_SIZE, drop_last=True)
+            valid_loader = DataLoader(valid_dataset,
+                                      batch_sampler=batch_sampler_valid,
+                                      num_workers=config.DDP_OPTS.NUM_WORKERS,
+                                      pin_memory=True)
+        else:
+            valid_loader = torch.utils.data.DataLoader(
+                valid_dataset,
+                batch_size=config.TEST.BATCH_SIZE,
+                shuffle=config.TEST.SHUFFLE,
+                num_workers=config.WORKERS,
+                pin_memory=True
+            )
 
-    valid_dataset = JointsDataset(cfg=config,
-                         root=config.DATASET.ROOT_VALID_LABEL,
-                         task='validation' if config.TASK == 'train' else config.TASK,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
-    if config.USE_DDP:
-        valid_sampler = DistributedSampler(dataset=valid_dataset, shuffle=True)
-        batch_sampler_valid = torch.utils.data.BatchSampler(valid_sampler, config.TEST.BATCH_SIZE, drop_last=True)
-        valid_loader = DataLoader(valid_dataset,
-                                  batch_sampler=batch_sampler_valid,
-                                  num_workers=config.DDP_OPTS.NUM_WORKERS,
-                                  pin_memory=True)
-    else:
-        valid_loader = torch.utils.data.DataLoader(
-            valid_dataset,
-            batch_size=config.TEST.BATCH_SIZE,
-            shuffle=config.TEST.SHUFFLE,
-            num_workers=config.WORKERS,
-            pin_memory=True
-        )
+    if config.TASK == 'append_pred_to_label_json_file':
+        from dataset.JointsDataset_from_json import JointsDataset
+        dataset = JointsDataset(cfg=config,
+                             root=config.DATASET.ROOT_VALID_LABEL,
+                             dataset_type='validation' if config.TASK == 'train' else config.TASK,
+                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
+        dataloader = torch.utils.data.DataLoader(
+                dataset,
+                batch_size=config.TEST.BATCH_SIZE,
+                shuffle=config.TEST.SHUFFLE,
+                num_workers=config.WORKERS,
+                pin_memory=True
+            )
     best_perf = 0.0
     if config.TASK == 'train':
         for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
@@ -245,8 +259,8 @@ def main(rank):
             epoch_time = end_time - start_time
             print(f"[Epoch {epoch}] Train Time: {epoch_time:.2f} sec")
 
-            if val_acc > best_perf:
-                best_perf = val_acc
+            if val_acc.avg > best_perf:
+                best_perf = val_acc.avg
                 best_model = True
             else:
                 best_model = False
@@ -272,7 +286,7 @@ def main(rank):
 
     elif config.TASK == 'validation':
         epoch = 0
-        acc = validate(config=config, val_loader=valid_loader, model=model,
+        acc, _ = validate(config=config, val_loader=valid_loader, model=model,
                      criterion=criterion, epoch=epoch, output_dir=final_output_dir, tb_log_dir=tb_log_dir,
                      writer_dict=writer_dict, is_training=False)
 
@@ -280,6 +294,9 @@ def main(rank):
         sequences_data_to_tf = get_sequences(config, valid_loader, model)
         with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/sequences_data_to_tf.json','w') as f:
             json.dump(sequences_data_to_tf, f)
+
+    elif config.TASK == 'append_pred_to_label_json_file':
+        append_pred_to_label_json_file(config, dataloader, model)
 
     else:
         raise ValueError("{} is wrong task.".format(config.TASK))
