@@ -9,13 +9,16 @@ from collections import Counter
 
 
 if __name__ == '__main__':
-    # *-*-*-*-*-*- Collect json files from validation dataset *-*-*-*-*-*-
+    # *-*-*-*-*-*- Collect validation json files *-*-*-*-*-*-
     base_path = '/storage/jysuh/fitness/fitness/validation/label'
     assert os.path.exists(base_path)
 
     json_list_valid = []  # 3139
     json_list_train = []  # 34468
     # total number of json files is 37670
+
+    # [Validation] max_frame = 17
+    # [Train] max_frame = 21
 
     for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
         path = base_path + '/' + os.listdir(base_path)[equipment_type_idx]
@@ -29,6 +32,7 @@ if __name__ == '__main__':
     # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
     #
 
+    # *-*-*-*-*-*- Collect train json files *-*-*-*-*-*-
     base_path = '/storage/jysuh/fitness/fitness/train/label'
 
     for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
@@ -52,26 +56,11 @@ if __name__ == '__main__':
                         #     body_list.append(day_path + '/' + json_files)   # DB
                         json_list_train.append(day_path + '/' + json_files)
     # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
-    # for k, v in counter.items():
-    #     print(f'{k} : {v}')
-    #
-    #
-    #
-    #
-    # *-*-*-*-*-*- extracting data from json files *-*-*-*-*-*-
+
+    # *-*-*-*-*-*- extracting information from json files *-*-*-*-*-*-
     json_files_list = json_list_train + json_list_valid
 
-    # debug
-    # max_val = 0
-    # for json_file in tqdm(json_files_list, desc='...', leave=True):
-    #     with open(json_file , 'r') as f:
-    #         data = json.load(f)
-    #     max_val = max(len(data['frames']), max_val)
-    #
-    # print() # valid -> max_frame = 17 frames // train -> max_frame = 21
-    ######
-
-    ##
+    # parameter init
     video_counter = defaultdict(int)
     coord_dict = {}
     thr_num_files = 0
@@ -81,6 +70,7 @@ if __name__ == '__main__':
         with open('/home/jysuh/PycharmProjects/coord_embedding/dataset/embedder_dataset/condition_vocab.pkl',
                   'rb') as f:
             condition_vocab = pickle.load(f)
+
     # ===
     head_key = ['Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear']
     for json_file in tqdm(json_list_valid, desc='...', leave=True):

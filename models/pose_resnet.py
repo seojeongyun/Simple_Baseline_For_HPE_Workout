@@ -263,7 +263,10 @@ class PoseResNet(nn.Module):
             # self.load_state_dict(pretrained_state_dict, strict=False)
             checkpoint = torch.load(pretrained, map_location='cpu')
             if 'coco' in pretrained or 'workout' in pretrained:
-                checkpoint = checkpoint['state_dict']
+                if 'state_dict' in checkpoint.keys():
+                    checkpoint = checkpoint['state_dict']
+                else:
+                    checkpoint = checkpoint
             final_module_bias = list(checkpoint.keys())[-1]
             final_module_weight = list(checkpoint.keys())[-2]
             if 'coco' in pretrained:

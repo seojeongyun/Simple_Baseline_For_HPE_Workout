@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections import Counter
 
 if __name__ == '__main__':
-    # *-*-*-*-*-*- Collect json files from validation dataset *-*-*-*-*-*-
+    # *-*-*-*-*-*- Collect validation json files *-*-*-*-*-*-
     base_path = '/storage/jysuh/fitness/fitness/validation/label'
     assert os.path.exists(base_path)
 
@@ -28,6 +28,7 @@ if __name__ == '__main__':
     # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
     #
 
+    # *-*-*-*-*-*- Collect train json files *-*-*-*-*-*-
     base_path = '/storage/jysuh/fitness/fitness/train/label'
 
     for equipment_type_idx, _ in enumerate(os.listdir(base_path)):

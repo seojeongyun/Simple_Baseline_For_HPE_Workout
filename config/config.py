@@ -53,7 +53,7 @@ POSE_RESNET.NUM_DECONV_FILTERS = [256, 256, 256]
 POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
 POSE_RESNET.FINAL_CONV_KERNEL = 1
 POSE_RESNET.TARGET_TYPE = 'gaussian'
-POSE_RESNET.HEATMAP_SIZE = [256, 256]  # width * height, ex: 24 * 32
+POSE_RESNET.HEATMAP_SIZE = [128, 128]  # width * height, ex: 24 * 32
 POSE_RESNET.SIGMA = 1.2                 # 2
 
 MODEL_EXTRAS = {
@@ -65,12 +65,13 @@ config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
 config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+# '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
 
 config.MODEL.NUM_JOINTS = 24
-config.MODEL.IMAGE_SIZE = [1024, 1024]  # width * height, ex: 192 * 256
+config.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
 
 config.MODEL.STYLE = 'pytorch'
@@ -87,8 +88,8 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-# config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
-config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
+config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
+# config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid_img_paths.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
@@ -97,7 +98,7 @@ config.DATASET.HYBRID_JOINTS_TYPE = ''
 config.DATASET.SELECT_DATA = False
 
 # training data augmentation
-config.DATASET.FLIP = False
+config.DATASET.FLIP = True
 config.DATASET.FLIP_PROB = 0.5
 config.DATASET.FLIP_JOINTS_PAIRS = [
     (1, 2),    # Left Eye / Right Eye
@@ -112,8 +113,8 @@ config.DATASET.FLIP_JOINTS_PAIRS = [
     (22, 23),  # Left Foot / Right Foot
 ]
 #
-config.DATASET.SCALE = False # True
-config.DATASET.ROTATE = False # True
+config.DATASET.SCALE = True # True
+config.DATASET.ROTATE = True # True
 #
 config.DATASET.ROT_FACTOR_MAX = 30
 config.DATASET.SCALE_MAX = 1.25
