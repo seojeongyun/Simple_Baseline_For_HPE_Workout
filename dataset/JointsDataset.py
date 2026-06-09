@@ -67,9 +67,9 @@ class JointsDataset(Dataset):
             self.img_paths, self.workout_conditions, self.video_idx_list, self.view_idx_list, self.db, self.max_frame = self.get_db()
         else:
             self.img_paths, self.db = self.get_db()
-
         # DEBUG
         self.out_of_scene = 0
+
     def get_db(self):
         if self.task == 'train':
             with open(self.cfg.DATASET.TRAIN_SET_PATH, 'r', encoding="utf-8") as f:
