@@ -8,7 +8,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
 import os
 import pprint
 import shutil
@@ -28,7 +27,6 @@ import torch.distributed as dist
 
 from tensorboardX import SummaryWriter
 from config.config import config
-from config.config import get_model_name
 from models.loss import JointsMSELoss
 from utils.function import train
 from utils.function import validate
@@ -37,13 +35,9 @@ from utils.utils import get_optimizer
 
 from utils.utils import create_logger
 from easydict import EasyDict as edict
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel
-
-import dataset
-import models
 
 
 def cleanup():
@@ -230,7 +224,7 @@ def main(rank):
             )
 
     if config.TASK == 'append_pred_to_label_json_file':
-        from dataset.JointsDataset_from_json import JointsDataset
+        from demo.JointsDataset_demo import JointsDataset
         dataset = JointsDataset(cfg=config,
                              root=config.DATASET.ROOT_VALID_LABEL,
                              dataset_type='validation' if config.TASK == 'train' else config.TASK,
@@ -267,7 +261,7 @@ def main(rank):
 
             if best_model:
                 if not config.MODEL.PRETRAINED:
-                    torch.save(model.state_dict(),os.path.join(final_output_dir, 'not_finetune.pth.tar'))
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, 'from_scratch_512_128.pth.tar'))
                 if config.MODEL.PRETRAINED:
                     torch.save(model.state_dict(),os.path.join(final_output_dir, 'finetune.pth_input_size_512_512.tar'))
 
