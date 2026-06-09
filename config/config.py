@@ -27,6 +27,12 @@ config.ACC_THR = 0.3
 #
 config.USE_DDP = False   # True -> USE DDP   /   False -> USE single gpu
 config.USE_AMP = False
+#
+
+# only DEMO
+config.DEMO = edict()
+config.DEMO.MODE = 'VALID' # TRAIN or VALID
+config.DEMO.BS = 1
 
 
 
@@ -54,7 +60,7 @@ POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
 POSE_RESNET.FINAL_CONV_KERNEL = 1
 POSE_RESNET.TARGET_TYPE = 'gaussian'
 POSE_RESNET.HEATMAP_SIZE = [128, 128]  # width * height, ex: 24 * 32
-POSE_RESNET.SIGMA = 1.2                 # 2
+POSE_RESNET.SIGMA = 2                 # 2
 
 MODEL_EXTRAS = {
     'pose_resnet': POSE_RESNET,
@@ -64,7 +70,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
@@ -88,7 +94,7 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json'
 # config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid_img_paths.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
@@ -124,8 +130,8 @@ config.DATASET.SCALE_MIN = 0.75
 config.TRAIN = edict()
 
 config.TRAIN.LR_FACTOR = 0.1
-config.TRAIN.LR_STEP = [90, 110]
-config.TRAIN.LR = 0.001 * 0.8 # 0.001
+config.TRAIN.LR_STEP = [3, 4]
+config.TRAIN.LR = 0.001 * 0.5 # 0.001
 
 config.TRAIN.OPTIMIZER = 'adam'
 config.TRAIN.MOMENTUM = 0.9
@@ -135,7 +141,7 @@ config.TRAIN.GAMMA1 = 0.99
 config.TRAIN.GAMMA2 = 0.0
 
 config.TRAIN.BEGIN_EPOCH = 0
-config.TRAIN.END_EPOCH = 10
+config.TRAIN.END_EPOCH = 5
 
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
