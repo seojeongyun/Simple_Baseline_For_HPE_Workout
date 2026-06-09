@@ -59,3 +59,7 @@ if __name__ == '__main__':
 
     # *-*-*-*-*-*- extracting information from json files *-*-*-*-*-*-
     json_files_list = json_list_train + json_list_valid
+
+    with open("/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/valid_json_files_path.json", "w", encoding="utf-8") as f:
+        json.dump(json_list_valid, f, ensure_ascii=False)
+    print()
