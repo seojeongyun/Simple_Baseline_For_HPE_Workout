@@ -76,7 +76,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
 
         # extract joint coordinates
         flatten = output.detach().cpu().reshape(config.TRAIN.BATCH_SIZE, config.MODEL.NUM_JOINTS, -1).argmax(axis=2)
-        y, x = torch.div(flatten, 256, rounding_mode='floor'), flatten % POSE_RESNET.HEATMAP_SIZE[0]
+        y, x = torch.div(flatten, POSE_RESNET.HEATMAP_SIZE[0], rounding_mode='floor'), flatten % POSE_RESNET.HEATMAP_SIZE[0]
         coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
 
         # DEBUG: Visualization of extracted joint coordinates on the input image
@@ -89,7 +89,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                     plt.figure()
                     plt.imshow(img)
                     for x, y in coords[batch_idx]:
-                        x, y = x.float() / 256 * 1024, y.float() / 256 * 1024
+                        x, y = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0], y.float() / POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
                         plt.scatter(x, y)
                     plt.axis('off')
                     plt.show()
@@ -137,8 +137,10 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
             if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
                 writer = writer_dict['writer']
                 global_steps = writer_dict['train_global_steps']
-                writer.add_scalar('train/loss', losses.val, global_steps)
-                writer.add_scalar('train/acc', acc.val, global_steps)
+                writer.add_scalar('train/loss_val', losses.val, global_steps)
+                writer.add_scalar('train/acc_val', acc.val, global_steps)
+                writer.add_scalar('train/loss_avg', losses.avg, global_steps)
+                writer.add_scalar('train/acc_avg', acc.avg, global_steps)
                 writer_dict['train_global_steps'] = global_steps + 1
                 #
                 # visualization exatracted joint coords on original image
@@ -147,12 +149,12 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                     img = input_img[0].transpose(1, 2, 0)
                     img = img.astype(np.uint8)
                     for x, y in coords[0]:
-                        x = int(x.item() / 256 * 1024)
-                        y = int(y.item() / 256 * 1024)
-                        y1 = max(0, y - 10)
-                        y2 = min(img.shape[0], y + 10)
-                        x1 = max(0, x - 10)
-                        x2 = min(img.shape[1], x + 10)
+                        x = int(x.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
+                        y = int(y.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
+                        y1 = max(0, y - 5)
+                        y2 = min(img.shape[0], y + 5)
+                        x1 = max(0, x - 5)
+                        x2 = min(img.shape[1], x + 5)
                         img[y1:y2, x1:x2] = np.array([255, 0, 0], dtype=np.uint8)
                     img_chw = np.transpose(img, (2, 0, 1))  # HWC -> CHW
                     write_tbimg(config, writer_dict['writer'], imgs=img_chw, step=i, type='vis_joint_coords')
@@ -294,6 +296,11 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 batch_time.update(time.time() - end)
                 end = time.time()
 
+                if acc.val < 0.7:
+                    result, ori, hm = plot_train_batch(config, input, output)
+                    train_result = [result, ori, hm]
+                    write_tbimg(config=config, tblogger=writer_dict['writer'], imgs=train_result, step=i, type='lower_performance_on_valid')
+
                 if i % config.PRINT_FREQ == 0:
                     msg = 'Epoch: [{0}][{1}/{2}]\t' \
                           'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
@@ -309,8 +316,10 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                     if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
                         writer = writer_dict['writer']
                         global_steps = writer_dict['valid_global_steps']
-                        writer.add_scalar('val/loss', losses.val, global_steps)
-                        writer.add_scalar('val/acc', acc.val, global_steps)
+                        writer.add_scalar('val/loss_val', losses.val, global_steps)
+                        writer.add_scalar('val/acc_val', acc.val, global_steps)
+                        writer.add_scalar('val/loss_avg', losses.avg, global_steps)
+                        writer.add_scalar('val/acc_avg', acc.avg, global_steps)
                         writer_dict['valid_global_steps'] = global_steps + 1
 
                         result, ori, hm = plot_train_batch(config, input, output)
