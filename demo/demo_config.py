@@ -1,0 +1,284 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
+import yaml
+import torch
+
+import numpy as np
+from easydict import EasyDict as edict
+
+
+config = edict()
+
+config.CONFIG_FILE_PATH = './configs/workout.yaml'
+config.OUTPUT_DIR = './result'
+config.LOG_DIR = ''
+config.DATA_DIR = ''
+#
+config.GPUS ='1'          # '0,1'
+config.WORKERS = 0
+config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
+# validation -> turn off data augmentation (rotate, scale, flip)
+#
+config.PRINT_FREQ = 2000                                                          ##### PRINT_FREQ
+config.ACC_THR = 0.3
+#
+config.USE_DDP = False   # True -> USE DDP   /   False -> USE single gpu
+config.USE_AMP = False
+#
+
+# only DEMO
+config.DEMO = edict()
+config.DEMO.MODE = 'VALID' # TRAIN or VALID
+config.DEMO.BS = 1
+
+
+
+
+# Cudnn related params
+config.CUDNN = edict()
+config.CUDNN.BENCHMARK = True
+config.CUDNN.DETERMINISTIC = False
+config.CUDNN.ENABLED = True
+
+# Distributed Data Parallel related params
+config.DDP_OPTS = edict()
+config.DDP_OPTS.NGPUS_PER_NODE = torch.cuda.device_count()
+config.DDP_OPTS.GPU_IDS = list(range(config.DDP_OPTS.NGPUS_PER_NODE))
+config.DDP_OPTS.NUM_WORKERS = config.DDP_OPTS.NGPUS_PER_NODE * 0
+config.DDP_OPTS.PORT_NUM = 31934
+
+# pose_resnet related params
+POSE_RESNET = edict()
+POSE_RESNET.NUM_LAYERS = 50 # 18, 34, 50, 101, 152 -> resnet18, resnet34, resnet40 ...
+POSE_RESNET.DECONV_WITH_BIAS = False
+POSE_RESNET.NUM_DECONV_LAYERS = 3
+POSE_RESNET.NUM_DECONV_FILTERS = [256, 256, 256]
+POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
+POSE_RESNET.FINAL_CONV_KERNEL = 1
+POSE_RESNET.TARGET_TYPE = 'gaussian'
+POSE_RESNET.HEATMAP_SIZE = [128, 128]  # width * height, ex: 24 * 32
+POSE_RESNET.SIGMA = 1.2                 # 2
+
+MODEL_EXTRAS = {
+    'pose_resnet': POSE_RESNET,
+}
+
+# common params for NETWORK
+config.MODEL = edict()
+config.MODEL.NAME = 'pose_resnet'
+config.MODEL.INIT_WEIGHTS = False   # True / False
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+# '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
+# '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+# '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
+# '/storage/jysuh/Simple_Baseline_For_HPE_weight/workout_3epoch.tar'
+
+config.MODEL.NUM_JOINTS = 24
+config.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
+config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
+
+config.MODEL.STYLE = 'pytorch'
+
+config.LOSS = edict()
+config.LOSS.USE_TARGET_WEIGHT = True
+
+# DATASET related params
+config.DATASET = edict()
+config.DATASET.ROOT_LABEL = '/storage/jysuh/fitness/fitness/train/label'
+config.DATASET.ROOT_IMAGE = '/storage/jysuh/fitness/fitness/train/image'
+config.DATASET.ROOT_VALID_LABEL = '/storage/jysuh/fitness/fitness/validation/label'
+config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/image'
+config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
+config.DATASET.DATASET = 'workout'
+#
+config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
+# config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
+config.DATASET.VALID_SET_PATH= './json_files/valid_img_paths.json'
+config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
+# config.DATASET.TRAIN_SET = 'valid2017'
+config.DATASET.DATA_FORMAT = 'jpg'
+config.DATASET.HYBRID_JOINTS_TYPE = ''
+config.DATASET.SELECT_DATA = False
+
+# training data augmentation
+config.DATASET.FLIP = True
+config.DATASET.FLIP_PROB = 0.5
+config.DATASET.FLIP_JOINTS_PAIRS = [
+    (1, 2),    # Left Eye / Right Eye
+    (3, 4),    # Left Ear / Right Ear
+    (5, 6),    # Left Shoulder / Right Shoulder
+    (7, 8),    # Left Elbow / Right Elbow
+    (9, 10),   # Left Wrist / Right Wrist
+    (11, 12),  # Left Hip / Right Hip
+    (13, 14),  # Left Knee / Right Knee
+    (15, 16),  # Left Ankle / Right Ankle
+    (18, 19),  # Left Palm / Right Palm
+    (22, 23),  # Left Foot / Right Foot
+]
+#
+config.DATASET.SCALE = True # True
+config.DATASET.ROTATE = True # True
+#
+config.DATASET.ROT_FACTOR_MAX = 30
+config.DATASET.SCALE_MAX = 1.25
+config.DATASET.SCALE_MIN = 0.75
+
+# train
+config.TRAIN = edict()
+
+config.TRAIN.LR_FACTOR = 0.1
+config.TRAIN.LR_STEP = [90, 110]
+config.TRAIN.LR = 0.001 * 0.8 # 0.001
+
+config.TRAIN.OPTIMIZER = 'adam'
+config.TRAIN.MOMENTUM = 0.9
+config.TRAIN.WD = 0.0001
+config.TRAIN.NESTEROV = False
+config.TRAIN.GAMMA1 = 0.99
+config.TRAIN.GAMMA2 = 0.0
+
+config.TRAIN.BEGIN_EPOCH = 0
+config.TRAIN.END_EPOCH = 10
+
+config.TRAIN.RESUME = False
+config.TRAIN.CHECKPOINT = ''
+
+config.TRAIN.BATCH_SIZE = 8
+config.TRAIN.SHUFFLE = True
+config.TRAIN.USE_AMP = False
+# testing
+config.TEST = edict()
+
+# size of images for each device
+config.TEST.BATCH_SIZE = 4 if config.TASK != 'get_sequences_for_tf' else 1
+
+# test type
+config.TEST.FULL_EVAL = True # True -> Evaluation for all eval dataset, False -> for some eval dataset
+
+# Test Model Epoch
+config.TEST.FLIP_TEST = False
+config.TEST.POST_PROCESS = True
+config.TEST.SHIFT_HEATMAP = True
+
+config.TEST.USE_GT_BBOX = False
+# nms
+config.TEST.OKS_THRE = 0.5
+config.TEST.IN_VIS_THRE = 0.0
+config.TEST.COCO_BBOX_FILE = '/storage/jysuh/coco2017/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
+config.TEST.BBOX_THRE = 1.0
+config.TEST.MODEL_FILE = ''
+config.TEST.IMAGE_THRE = 0.0
+config.TEST.NMS_THRE = 1.0
+config.TEST.SHUFFLE = False # True if config.TASK != 'get_sequences_for_tf' else False
+
+# debug
+config.DEBUG = edict()
+config.DEBUG.VISUALIZATION = False
+config.DEBUG.DEBUG = False
+config.DEBUG.SAVE_BATCH_IMAGES_GT = False
+config.DEBUG.SAVE_BATCH_IMAGES_PRED = False
+config.DEBUG.SAVE_HEATMAPS_GT = False
+config.DEBUG.SAVE_HEATMAPS_PRED = False
+
+
+def _update_dict(k, v):
+    if k == 'DATASET':
+        if 'MEAN' in v and v['MEAN']:
+            v['MEAN'] = np.array([eval(x) if isinstance(x, str) else x
+                                  for x in v['MEAN']])
+        if 'STD' in v and v['STD']:
+            v['STD'] = np.array([eval(x) if isinstance(x, str) else x
+                                 for x in v['STD']])
+    if k == 'MODEL':
+        if 'EXTRA' in v and 'HEATMAP_SIZE' in v['EXTRA']:
+            if isinstance(v['EXTRA']['HEATMAP_SIZE'], int):
+                v['EXTRA']['HEATMAP_SIZE'] = np.array(
+                    [v['EXTRA']['HEATMAP_SIZE'], v['EXTRA']['HEATMAP_SIZE']])
+            else:
+                v['EXTRA']['HEATMAP_SIZE'] = np.array(
+                    v['EXTRA']['HEATMAP_SIZE'])
+        if 'IMAGE_SIZE' in v:
+            if isinstance(v['IMAGE_SIZE'], int):
+                v['IMAGE_SIZE'] = np.array([v['IMAGE_SIZE'], v['IMAGE_SIZE']])
+            else:
+                v['IMAGE_SIZE'] = np.array(v['IMAGE_SIZE'])
+    for vk, vv in v.items():
+        if vk in config[k]:
+            config[k][vk] = vv
+        else:
+            raise ValueError("{}.{} not exist in config.py".format(k, vk))
+
+
+def update_config(config_file):
+    exp_config = None
+    with open(config_file) as f:
+        exp_config = edict(yaml.load(f))
+        for k, v in exp_config.items():
+            if k in config:
+                if isinstance(v, dict):
+                    _update_dict(k, v)
+                else:
+                    if k == 'SCALES':
+                        config[k][0] = (tuple(v))
+                    else:
+                        config[k] = v
+            else:
+                raise ValueError("{} not exist in config.py".format(k))
+
+
+def gen_config(config_file):
+    cfg = dict(config)
+    for k, v in cfg.items():
+        if isinstance(v, edict):
+            cfg[k] = dict(v)
+
+    with open(config_file, 'w') as f:
+        yaml.dump(dict(cfg), f, default_flow_style=False)
+
+
+def update_dir(model_dir, log_dir, data_dir):
+    if model_dir:
+        config.OUTPUT_DIR = model_dir
+
+    if log_dir:
+        config.LOG_DIR = log_dir
+
+    if data_dir:
+        config.DATA_DIR = data_dir
+
+    config.DATASET.ROOT = os.path.join(config.DATA_DIR, config.DATASET.ROOT)
+
+    config.TEST.COCO_BBOX_FILE = os.path.join(config.DATA_DIR, config.TEST.COCO_BBOX_FILE)
+
+    config.MODEL.PRETRAINED = os.path.join(config.DATA_DIR, config.MODEL.PRETRAINED)
+
+
+def get_model_name(cfg):
+    name = cfg.MODEL.NAME
+    full_name = cfg.MODEL.NAME
+    extra = cfg.MODEL.EXTRA
+    if name in ['pose_resnet']:
+        name = '{model}_{num_layers}'.format(
+            model=name,
+            num_layers=extra.NUM_LAYERS)
+        deconv_suffix = ''.join(
+            'd{}'.format(num_filters)
+            for num_filters in extra.NUM_DECONV_FILTERS)
+        full_name = '{height}x{width}_{name}_{deconv_suffix}'.format(
+            height=cfg.MODEL.IMAGE_SIZE[1],
+            width=cfg.MODEL.IMAGE_SIZE[0],
+            name=name,
+            deconv_suffix=deconv_suffix)
+    else:
+        raise ValueError('Unkown models: {}'.format(cfg.MODEL))
+
+    return name, full_name
+
+
+if __name__ == '__main__':
+    import sys
+    # gen_config(sys.argv[1])
+    gen_config('/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/workout.yaml')
