@@ -244,14 +244,9 @@ def main(rank):
             #
             criterion.on_new_epoch(device=config.DDP_OPTS.GPU if config.USE_DDP else device)
 
-            start_time = time.time()
             # train for one epoch
             val_acc = train(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
                                  final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)
-
-            end_time = time.time()
-            epoch_time = end_time - start_time
-            print(f"[Epoch {epoch}] Train Time: {epoch_time:.2f} sec")
 
             if val_acc.avg > best_perf:
                 best_perf = val_acc.avg
