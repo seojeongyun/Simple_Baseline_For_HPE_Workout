@@ -45,43 +45,6 @@ def cleanup():
     """ Destroy process group """
     dist.destroy_process_group()
 
-def init_distributed_training(rank):
-    # 1. setting for distributed training
-    config.DDP_OPTS.RANK = rank
-    config.DDP_OPTS.GPU = config.DDP_OPTS.RANK % torch.cuda.device_count()
-    config.DDP_OPTS.LOCAL_GPU_ID = int(config.DDP_OPTS.GPU_IDS[config.DDP_OPTS.RANK])
-    torch.cuda.set_device(config.DDP_OPTS.LOCAL_GPU_ID)
-
-    if config.DDP_OPTS.RANK is not None:
-        print("Use GPU: {} for training".format(config.DDP_OPTS.LOCAL_GPU_ID))
-
-    # 2. init_process_group
-    torch.distributed.init_process_group(backend='nccl',
-                                         init_method='tcp://202.31.136.169:' + str(config.DDP_OPTS.PORT_NUM),
-                                         world_size=config.DDP_OPTS.NGPUS_PER_NODE,
-                                         rank=config.DDP_OPTS.RANK)
-
-    # if put this function, the all processes block at all.
-    torch.distributed.barrier()
-
-    # convert print fn iif rank is zero
-    setup_for_distributed(config.DDP_OPTS.RANK == 0)
-    print('CONFIG.DDP_OPTS :', config.DDP_OPTS)
-
-def setup_for_distributed(is_master):
-    """
-    This function disables printing when not in master process
-    """
-    import builtins as __builtin__
-    builtin_print = __builtin__.print
-
-    def print(*args, **kwargs):
-        force = kwargs.pop('force', False)
-        if is_master or force:
-            builtin_print(*args, **kwargs)
-
-    __builtin__.print = print
-
 def gen_config(config_save_path):
     cfg = dict(config)
     for k, v in cfg.items():
@@ -189,8 +152,14 @@ def main(rank):
 
     with torch.no_grad():
         for step, meta in enumerate(dataloader):
+            # Generate Image Path from meta
+
+            # Image Load and Preprocess
+
+            # Use Image to Input
+
             # measure data loading time
-            data_time.update(time.time() - end)
+
 
             input = input.cuda(int(config.GPUS), non_blocking=True)
             target = target.cuda(int(config.GPUS), non_blocking=True)
@@ -241,96 +210,6 @@ def main(rank):
                         prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
                         save_debug_images(config, input, meta, target, pred * 4, output,
                                           prefix)
-
-        else:
-            for i, (input, target, target_weight, meta) in enumerate(val_loader):
-                # measure data loading time
-                data_time.update(time.time() - end)
-                #
-                if config.USE_DDP:
-                    input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-                    target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-                    target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-
-                else:
-                    input = input.cuda(int(config.GPUS), non_blocking=True)
-                    target = target.cuda(int(config.GPUS), non_blocking=True)
-                    target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
-
-                # compute output
-                output = model(input)
-
-                loss = criterion(output, target, target_weight)
-
-                num_images = input.size(0)
-
-                # measure accuracy and record loss
-                losses.update(loss.item(), num_images)
-                _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
-                                                 target.cpu().numpy(), thr=config.ACC_THR)
-
-                acc.update(avg_acc, cnt)
-
-                # measure elapsed time
-                batch_time.update(time.time() - end)
-                end = time.time()
-
-                if i % config.PRINT_FREQ == 0:
-                    msg = 'Epoch: [{0}][{1}/{2}]\t' \
-                          'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
-                          'Speed {speed:.1f} samples/s\t' \
-                          'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
-                          'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
-                          'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
-                        0, i, len(val_loader), batch_time=batch_time,
-                        speed=input.size(0) / batch_time.val,
-                        data_time=data_time, loss=losses, acc=acc)
-                    logger.info(msg)
-
-                    if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-                        writer = writer_dict['writer']
-                        global_steps = writer_dict['valid_global_steps']
-                        writer.add_scalar('val/loss', losses.val, global_steps)
-                        writer.add_scalar('val/acc', acc.val, global_steps)
-                        writer_dict['valid_global_steps'] = global_steps + 1
-
-                        result, ori, hm = plot_train_batch(config, input, output)
-                        valid_result = [result, ori, hm]
-                        write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
-
-                        prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
-                        save_debug_images(config, input, meta, target, pred * 4, output,
-                                          prefix)
-
-                ####
-            # if i % config.PRINT_FREQ == 0:
-            #     msg = 'Test: [{0}/{1}]\t' \
-            #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-            #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
-            #           'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-            #               i, len(val_loader), batch_time=batch_time,
-            #               loss=losses, acc=acc)
-            #     logger.info(msg)
-            #
-            #     prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-            #
-            #     result, ori, hm = plot_train_batch(config, input, output)
-            #     valid_result = [result, ori, hm]
-            #     epoch = i if is_training else epoch
-            #
-            #     write_tbimg(writer_dict['writer'], imgs=valid_result, step=epoch, type='val')
-            #     save_debug_images(config, input, meta, target, pred*4, output,
-            #                       prefix)
-            #
-            # if writer_dict:
-            #     writer = writer_dict['writer']
-            #     global_steps = writer_dict['valid_global_steps']
-            #     # writer.add_scalar('valid/loss', losses.avg, global_steps)
-            #     # writer.add_scalar('valid/acc', acc.avg, global_steps)
-            #     writer.add_scalar('valid/loss', losses.avg, global_step=epoch)
-            #     writer.add_scalar('valid/acc', acc.avg, global_step=epoch)
-
-            # break
 
 if __name__ == '__main__':
     from setproctitle import *
