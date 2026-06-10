@@ -200,7 +200,9 @@ def main(rank):
             batch_size=config.TRAIN.BATCH_SIZE,
             shuffle=config.TRAIN.SHUFFLE,
             num_workers=config.WORKERS,
-            pin_memory=True
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=4,
         )
 
     valid_dataset = JointsDataset(cfg=config,
@@ -220,7 +222,9 @@ def main(rank):
             batch_size=config.TEST.BATCH_SIZE,
             shuffle=config.TEST.SHUFFLE,
             num_workers=config.WORKERS,
-            pin_memory=True
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=4,
         )
 
     if config.TASK == 'append_pred_to_label_json_file':
@@ -291,7 +295,7 @@ def main(rank):
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('HPE : sigma=0.1 / lr=0.001*0.7 / thr = 0.2')
+    setproctitle('HPE: From Scratch')
     # setproctitle('Generate Sequences information for transformer')
     if config.USE_DDP:
         torch.multiprocessing.spawn(main,nprocs=config.DDP_OPTS.NGPUS_PER_NODE,join=True)
