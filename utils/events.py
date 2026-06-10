@@ -60,6 +60,7 @@ def write_tbimg(config, tblogger, imgs, step, type='train'):
                 tblogger.add_image(f'lower_performance_on_valid/img_result', imgs[0][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'lower_performance_on_valid/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'lower_performance_on_valid/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
+                tblogger.add_image(f'lower_performance_on_valid/joint', imgs[3], step + 1, dataformats='CHW')
 
     else:
         print(f'Invalid type: "{type}". Cannot log images to TensorBoard.')
