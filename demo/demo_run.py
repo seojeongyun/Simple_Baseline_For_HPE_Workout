@@ -27,7 +27,7 @@ import torch.distributed as dist
 
 from utils.function import AverageMeter
 from tensorboardX import SummaryWriter
-from config.config import config
+from demo.demo_config import config
 from models.loss import JointsMSELoss
 from utils.function import train
 from utils.function import validate
@@ -165,32 +165,18 @@ def main(rank):
                                      std=[0.229, 0.224, 0.225])
 
     from demo.JointsDataset_demo import JointsDataset
-    TRAIN_JSON = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/train_json_files_path.json'
-    VALID_JSON = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/valid_json_files_path.json'
 
-    if config.DEMO == 'TRAIN':
-        train_dataset = JointsDataset(cfg=config, root=TRAIN_JSON)
+    dataset = JointsDataset(cfg=config,
+                         root=config.DEMO.JSON_PATH,
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
 
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=config.DEMO.BS,
-            shuffle=False,
-            num_workers=config.WORKERS,
-            pin_memory=True
-        )
-
-    if config.DEMO == 'VALID':
-        valid_dataset = JointsDataset(cfg=config,
-                             root=VALID_JSON,
-                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
-
-        valid_loader = torch.utils.data.DataLoader(
-            valid_dataset,
-            batch_size=config.DEMO.BS,
-            shuffle=False,
-            num_workers=config.WORKERS,
-            pin_memory=True
-        )
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=config.DEMO.BS,
+        shuffle=False,
+        num_workers=config.WORKERS,
+        pin_memory=True
+    )
 
     # Set Average Meter (Metric)
     batch_time = AverageMeter()
@@ -202,20 +188,13 @@ def main(rank):
     model.eval()
 
     with torch.no_grad():
-        for step, meta in enumerate(valid_loader):
+        for step, meta in enumerate(dataloader):
+            # measure data loading time
+            data_time.update(time.time() - end)
 
-                # measure data loading time
-                data_time.update(time.time() - end)
-                #
-                if config.USE_DDP:
-                    input = input.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-                    target = target.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-                    target_weight = target_weight.cuda(config.DDP_OPTS.GPU, non_blocking=True)
-
-                else:
-                    input = input.cuda(int(config.GPUS), non_blocking=True)
-                    target = target.cuda(int(config.GPUS), non_blocking=True)
-                    target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
+            input = input.cuda(int(config.GPUS), non_blocking=True)
+            target = target.cuda(int(config.GPUS), non_blocking=True)
+            target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
                 # compute output
                 output = model(input)
