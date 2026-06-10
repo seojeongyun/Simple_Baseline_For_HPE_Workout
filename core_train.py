@@ -182,46 +182,46 @@ def main(rank):
                                      std=[0.229, 0.224, 0.225])
 
     from dataset.JointsDataset import JointsDataset
-    if config.TASK == 'train':
-        train_dataset = JointsDataset(cfg=config,
-                             root=config.DATASET.ROOT,
-                             task=config.TASK,
-                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
-        if config.USE_DDP:
-            train_sampler = DistributedSampler(dataset=train_dataset, shuffle=True)
-            batch_sampler_train = torch.utils.data.BatchSampler(train_sampler, config.TRAIN.BATCH_SIZE, drop_last=True)
-            train_loader = DataLoader(train_dataset,
-                                      batch_sampler=batch_sampler_train,
-                                      num_workers=config.DDP_OPTS.NUM_WORKERS,
-                                      pin_memory=True)
-        else:
-            train_loader = torch.utils.data.DataLoader(
-                train_dataset,
-                batch_size=config.TRAIN.BATCH_SIZE,
-                shuffle=config.TRAIN.SHUFFLE,
-                num_workers=config.WORKERS,
-                pin_memory=True
-            )
-    if config.TASK != 'append_pred_to_label_json_file':
-        valid_dataset = JointsDataset(cfg=config,
-                             root=config.DATASET.ROOT_VALID_LABEL,
-                             task='validation' if config.TASK == 'train' else config.TASK,
-                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
-        if config.USE_DDP:
-            valid_sampler = DistributedSampler(dataset=valid_dataset, shuffle=True)
-            batch_sampler_valid = torch.utils.data.BatchSampler(valid_sampler, config.TEST.BATCH_SIZE, drop_last=True)
-            valid_loader = DataLoader(valid_dataset,
-                                      batch_sampler=batch_sampler_valid,
-                                      num_workers=config.DDP_OPTS.NUM_WORKERS,
-                                      pin_memory=True)
-        else:
-            valid_loader = torch.utils.data.DataLoader(
-                valid_dataset,
-                batch_size=config.TEST.BATCH_SIZE,
-                shuffle=config.TEST.SHUFFLE,
-                num_workers=config.WORKERS,
-                pin_memory=True
-            )
+
+    train_dataset = JointsDataset(cfg=config,
+                         root=config.DATASET.ROOT,
+                         task=config.TASK,
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
+    if config.USE_DDP:
+        train_sampler = DistributedSampler(dataset=train_dataset, shuffle=True)
+        batch_sampler_train = torch.utils.data.BatchSampler(train_sampler, config.TRAIN.BATCH_SIZE, drop_last=True)
+        train_loader = DataLoader(train_dataset,
+                                  batch_sampler=batch_sampler_train,
+                                  num_workers=config.DDP_OPTS.NUM_WORKERS,
+                                  pin_memory=True)
+    else:
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=config.TRAIN.BATCH_SIZE,
+            shuffle=config.TRAIN.SHUFFLE,
+            num_workers=config.WORKERS,
+            pin_memory=True
+        )
+
+    valid_dataset = JointsDataset(cfg=config,
+                         root=config.DATASET.ROOT_VALID_LABEL,
+                         task='validation' if config.TASK == 'train' else config.TASK,
+                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
+    if config.USE_DDP:
+        valid_sampler = DistributedSampler(dataset=valid_dataset, shuffle=True)
+        batch_sampler_valid = torch.utils.data.BatchSampler(valid_sampler, config.TEST.BATCH_SIZE, drop_last=True)
+        valid_loader = DataLoader(valid_dataset,
+                                  batch_sampler=batch_sampler_valid,
+                                  num_workers=config.DDP_OPTS.NUM_WORKERS,
+                                  pin_memory=True)
+    else:
+        valid_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=config.TEST.BATCH_SIZE,
+            shuffle=config.TEST.SHUFFLE,
+            num_workers=config.WORKERS,
+            pin_memory=True
+        )
 
     if config.TASK == 'append_pred_to_label_json_file':
         from demo.JointsDataset_demo import JointsDataset
