@@ -203,12 +203,17 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
+    #
     FULL_EVAL = config.TEST.FULL_EVAL
     # switch to evaluate mode
     model.eval()
 
     # To check various test images in the tensorboard, we make randint value.
     max_val_images = random.randint(2, 10) if is_training else len(val_loader)
+
+    # To Normalization
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
     with torch.no_grad():
         end = time.time()
@@ -323,7 +328,11 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
                     input_img = input.cpu().detach().numpy()
                     img = input_img[0].transpose(1, 2, 0)
-                    img = img.astype(np.uint8)
+
+                    # De-normalize: normalized -> [0, 1]
+                    img = img * std + mean
+                    img = np.clip(img, 0, 1)
+
                     for x, y in coords[0]:
                         x = int(x.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
                         y = int(y.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
@@ -331,7 +340,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                         y2 = min(img.shape[0], y + 5)
                         x1 = max(0, x - 5)
                         x2 = min(img.shape[1], x + 5)
-                        img[y1:y2, x1:x2] = np.array([255, 0, 0], dtype=np.uint8)
+                        img[y1:y2, x1:x2] = np.array([1.0, 0.0, 0.0], dtype=np.uint8)
                     img_chw = np.transpose(img, (2, 0, 1))  # HWC -> CHW
                     train_result = [result, ori, hm, img_chw]
 
