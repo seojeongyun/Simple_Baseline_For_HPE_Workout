@@ -18,24 +18,16 @@ config.LOG_DIR = ''
 config.DATA_DIR = ''
 #
 config.GPUS ='1'          # '0,1'
-config.WORKERS = 0
+config.WORKERS = 8
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
 config.PRINT_FREQ = 2000                                                          ##### PRINT_FREQ
-config.ACC_THR = 0.3
+config.ACC_THR = 0.5
 #
 config.USE_DDP = False   # True -> USE DDP   /   False -> USE single gpu
 config.USE_AMP = False
 #
-
-# only DEMO
-config.DEMO = edict()
-config.DEMO.MODE = 'VALID' # TRAIN or VALID
-config.DEMO.BS = 1
-
-
-
 
 # Cudnn related params
 config.CUDNN = edict()
@@ -69,8 +61,9 @@ MODEL_EXTRAS = {
 # common params for NETWORK
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
-config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
+config.MODEL.INIT_WEIGHTS = True   # True / False
+config.MODEL.PRETRAINED = False
+# '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/checkpoint_during_epoch.pth.tar'
@@ -94,7 +87,7 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
 # config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/valid_img_paths.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
@@ -146,14 +139,14 @@ config.TRAIN.END_EPOCH = 5
 config.TRAIN.RESUME = False
 config.TRAIN.CHECKPOINT = ''
 
-config.TRAIN.BATCH_SIZE = 8
+config.TRAIN.BATCH_SIZE = 32
 config.TRAIN.SHUFFLE = True
 config.TRAIN.USE_AMP = False
 # testing
 config.TEST = edict()
 
 # size of images for each device
-config.TEST.BATCH_SIZE = 4 if config.TASK != 'get_sequences_for_tf' else 1
+config.TEST.BATCH_SIZE = 32 if config.TASK != 'get_sequences_for_tf' else 1
 
 # test type
 config.TEST.FULL_EVAL = True # True -> Evaluation for all eval dataset, False -> for some eval dataset
