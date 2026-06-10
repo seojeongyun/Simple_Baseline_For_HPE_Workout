@@ -286,9 +286,6 @@ def main(rank):
         with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/sequences_data_to_tf.json','w') as f:
             json.dump(sequences_data_to_tf, f)
 
-    elif config.TASK == 'append_pred_to_label_json_file':
-        append_pred_to_label_json_file(config, dataloader, model)
-
     else:
         raise ValueError("{} is wrong task.".format(config.TASK))
 
