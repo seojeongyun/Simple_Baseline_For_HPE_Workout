@@ -44,7 +44,8 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     scaler = None if (not use_amp or use_bf16) else GradScaler()
     val_iter = iter(valid_loader)
-
+    #
+    one_epoch_start_time = time.time()
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -172,13 +173,20 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
 
-    start_time = time.time()
+    # Training time measurement for one epoch
+    one_epoch_end_time = time.time()
+    train_one_epoch_time = one_epoch_end_time - one_epoch_start_time
+    print(f"[Epoch {epoch}] Train Time: {train_one_epoch_time:.2f} sec")
+
+    # Validation time measurement
+    valid_start_time = time.time()
     acc_val, val_iter = validate(config=config, val_loader=valid_loader, model=model,
              criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
              val_iter=val_iter, writer_dict=writer_dict, is_training=True)
-    end_time = time.time()
-    epoch_time = end_time - start_time
+    valid_end_time = time.time()
+    epoch_time = valid_end_time - valid_start_time
     print(f"[Epoch {epoch}] Valid Time: {epoch_time:.2f} sec")
+    #
     return acc_val
 
 def validate(config, val_loader, model, criterion, epoch, output_dir,
