@@ -45,6 +45,9 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
     scaler = None if (not use_amp or use_bf16) else GradScaler()
     val_iter = iter(valid_loader)
     #
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    #
     one_epoch_start_time = time.time()
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
@@ -86,7 +89,9 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                 input_img = input.cpu().detach().numpy()
                 for batch_idx in range(input.shape[0]):
                     img = input_img[batch_idx].transpose(1, 2, 0)
-                    img = img.astype(np.uint8)
+                    img = img * std + mean
+                    img = np.clip(img, 0, 1)
+                    #
                     plt.figure()
                     plt.imshow(img)
                     for x, y in coords[batch_idx]:
@@ -148,7 +153,10 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                 if isinstance(input, torch.Tensor):
                     input_img = input.cpu().detach().numpy()
                     img = input_img[0].transpose(1, 2, 0)
-                    img = img.astype(np.uint8)
+                    # De-normalize: normalized -> [0, 1]
+                    img = img * std + mean
+                    img = np.clip(img, 0, 1)
+                    #
                     for x, y in coords[0]:
                         x = int(x.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
                         y = int(y.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
@@ -156,7 +164,7 @@ def train(config, train_loader, valid_loader, model, criterion, optimizer, epoch
                         y2 = min(img.shape[0], y + 5)
                         x1 = max(0, x - 5)
                         x2 = min(img.shape[1], x + 5)
-                        img[y1:y2, x1:x2] = np.array([255, 0, 0], dtype=np.uint8)
+                        img[y1:y2, x1:x2] = np.array([1.0, 0.0, 0.0], dtype=np.uint8)
                     img_chw = np.transpose(img, (2, 0, 1))  # HWC -> CHW
                     write_tbimg(config, writer_dict['writer'], imgs=img_chw, step=i, type='vis_joint_coords')
 
@@ -305,9 +313,31 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 end = time.time()
 
                 if acc.val < 0.7:
+                    # Drawing Heatmap on Original Image
                     result, ori, hm = plot_train_batch(config, input, output)
-                    train_result = [result, ori, hm]
-                    write_tbimg(config=config, tblogger=writer_dict['writer'], imgs=train_result, step=i, type='lower_performance_on_valid')
+
+                    # Extract joint coordinates
+                    flatten = output.detach().cpu().reshape(config.TEST.BATCH_SIZE, config.MODEL.NUM_JOINTS, -1).argmax(axis=2)
+                    y, x = torch.div(flatten, POSE_RESNET.HEATMAP_SIZE[0], rounding_mode='floor'), flatten % POSE_RESNET.HEATMAP_SIZE[0]
+                    coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
+
+                    input_img = input.cpu().detach().numpy()
+                    img = input_img[0].transpose(1, 2, 0)
+                    img = img.astype(np.uint8)
+                    for x, y in coords[0]:
+                        x = int(x.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
+                        y = int(y.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
+                        y1 = max(0, y - 5)
+                        y2 = min(img.shape[0], y + 5)
+                        x1 = max(0, x - 5)
+                        x2 = min(img.shape[1], x + 5)
+                        img[y1:y2, x1:x2] = np.array([255, 0, 0], dtype=np.uint8)
+                    img_chw = np.transpose(img, (2, 0, 1))  # HWC -> CHW
+                    train_result = [result, ori, hm, img_chw]
+
+                    write_tbimg(config=config, tblogger=writer_dict['writer'], imgs=train_result, step=i,
+                                type='lower_performance_on_valid')
+
 
                 if i % config.PRINT_FREQ == 0:
                     msg = 'Epoch: [{0}][{1}/{2}]\t' \
@@ -448,6 +478,14 @@ def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):
         # img = input[0].transpose(2, 0).transpose(1, 0)
         # img = img.type(torch.uint8)
         # plt.imshow(img)
+
+        # De-normalize input: normalized -> [0, 1] -> [0, 255]
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(1, 3, 1, 1)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(1, 3, 1, 1)
+        input_denorm = input * std + mean
+        input_denorm = np.clip(input_denorm, 0, 1)
+        input_uint8 = (input_denorm * 255).astype(np.uint8)  # [B, C, H, W]
+
     if isinstance(output, torch.Tensor):
         upsample = torch.nn.Upsample(size=(config.MODEL.IMAGE_SIZE[0],config.MODEL.IMAGE_SIZE[1]), mode='nearest')
         output = upsample(output)
@@ -474,8 +512,8 @@ def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):
         temp[i] = np.stack([temp[i][2, :, :], temp[i][1, :, :], temp[i][0, :, :]], axis=0)
     # result = input + gamma * np.stack(temp, axis=0)
 
-    result = (deepcopy(input)*(1-gamma) + np.stack(temp, axis=0) * gamma).astype('uint8')
-    return result, input.astype(np.uint8), np.stack(temp, axis=0)
+    result = (deepcopy(input_uint8)*(1-gamma) + np.stack(temp, axis=0) * gamma).astype('uint8')
+    return result, input_uint8.astype(np.uint8), np.stack(temp, axis=0)
         # rgb img + htmap / rgb img / htmap
 
 
