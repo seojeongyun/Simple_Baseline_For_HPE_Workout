@@ -56,7 +56,7 @@ def write_tbimg(config, tblogger, imgs, step, type='train'):
     elif type == 'lower_performance_on_valid':
         for idx, img in enumerate(imgs[0]):
             cnt += 1
-            if cnt % config.TRAIN.BATCH_SIZE == 0:
+            if cnt % config.TEST.BATCH_SIZE == 0:
                 tblogger.add_image(f'lower_performance_on_valid/img_result', imgs[0][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'lower_performance_on_valid/rgb_img', imgs[1][idx], step + 1, dataformats='CHW')
                 tblogger.add_image(f'lower_performance_on_valid/heat_map', imgs[2][idx], step + 1, dataformats='CHW')
