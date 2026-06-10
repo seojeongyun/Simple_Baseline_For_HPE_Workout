@@ -159,7 +159,7 @@ class JointsDataset(Dataset):
         scale = np.random.uniform(s_min, s_max) if self.scale else 1.0
         angle = np.random.uniform(-r_max, r_max) if self.rotate else 0.0
 
-        if self.scale or self.rotate and self.task != 'validation':
+        if (self.scale or self.rotate) and self.task != 'validation':
             M = cv2.getRotationMatrix2D((cx, cy), angle, scale)
             # Apply Scaling or Rotation
             transformed_img = cv2.warpAffine(
