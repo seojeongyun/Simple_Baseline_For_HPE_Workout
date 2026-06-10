@@ -152,15 +152,16 @@ class JointsDataset(Dataset):
             raise ValueError('Fail to read {}'.format(image_file))
 
         H, W = data_numpy.shape[:2]  # H=1080, W=1920
-        CROP = 1080
         cx, cy = W / 2.0, H / 2.0  # (960, 540)
+        CROP = 1080
         s_min, s_max, r_max = self.scale_min, self.scale_max, self.rotation_factor
 
         scale = np.random.uniform(s_min, s_max) if self.scale else 1.0
         angle = np.random.uniform(-r_max, r_max) if self.rotate else 0.0
 
-        if self.scale or self.rotate:
+        if self.scale or self.rotate and self.task != 'validation':
             M = cv2.getRotationMatrix2D((cx, cy), angle, scale)
+            # Apply Scaling or Rotation
             transformed_img = cv2.warpAffine(
                 data_numpy, M, (W, H),
                 flags=cv2.INTER_LINEAR,
@@ -168,10 +169,12 @@ class JointsDataset(Dataset):
                 borderValue=0
             )
 
+        # Calc UpLeft and BottomRight point
         x0, x1 = int(round(cx - CROP / 2)), int(round(cx + CROP / 2))
         y0, y1 = int(round(cy - CROP / 2)), int(round(cy + CROP / 2))
         cropped = transformed_img[y0:y1, x0:x1] if self.scale or self.rotate else data_numpy[y0:y1, x0:x1] # [1080,1080]
 
+        # map original coord to cropped scale coord
         if self.task != 'get_sequences_for_tf':
             joints = np.array(self.db[image_file]['joints'], dtype=np.float32)
             joints_xy = joints[:, :2].copy()
@@ -185,9 +188,9 @@ class JointsDataset(Dataset):
 
             transformed_xy -= np.array([x0, y0], dtype=np.float32)
 
-            # do_flip = np.random.rand() < self.flip_prob if self.flip else False
-            do_flip = True
-            if do_flip:
+            # Flip
+            do_flip = np.random.rand() < self.flip_prob if self.flip else False
+            if do_flip and self.task != 'validation':
                 cropped = cv2.flip(cropped, 1)
                 transformed_xy[:, 0] = (CROP - 1) - transformed_xy[:, 0]
 
@@ -220,8 +223,12 @@ class JointsDataset(Dataset):
         else:
             scale_x = scale_y = 1.0
 
-        data_numpy = data_numpy.transpose(2, 0, 1)  # CHW
-        data_numpy = torch.from_numpy(data_numpy).float()
+        # Normalize
+        if self.transform:
+            data_numpy = self.transform(data_numpy)
+        else:
+            data_numpy = data_numpy.transpose(2, 0, 1)
+            data_numpy = torch.from_numpy(data_numpy).float()
 
         if self.task != 'get_sequences_for_tf':
             transformed_xy_scaled = transformed_xy * np.array([scale_x, scale_y], dtype=np.float32)
