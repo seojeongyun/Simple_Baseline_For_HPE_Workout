@@ -172,14 +172,14 @@ class JointsDataset(Dataset):
         # Calc UpLeft and BottomRight point
         x0, x1 = int(round(cx - CROP / 2)), int(round(cx + CROP / 2))
         y0, y1 = int(round(cy - CROP / 2)), int(round(cy + CROP / 2))
-        cropped = transformed_img[y0:y1, x0:x1] if self.scale or self.rotate else data_numpy[y0:y1, x0:x1] # [1080,1080]
+        cropped = transformed_img[y0:y1, x0:x1] if (self.scale or self.rotate) and self.task != 'validation' else data_numpy[y0:y1, x0:x1]
 
         # map original coord to cropped scale coord
         if self.task != 'get_sequences_for_tf':
             joints = np.array(self.db[image_file]['joints'], dtype=np.float32)
             joints_xy = joints[:, :2].copy()
 
-            if self.scale or self.rotate:
+            if (self.scale or self.rotate) and self.task != 'validation':
                 ones = np.ones((joints_xy.shape[0], 1), dtype=np.float32)
                 hom = np.hstack([joints_xy, ones])  # (N,3)
                 transformed_xy = (M @ hom.T).T  # (N,2)
