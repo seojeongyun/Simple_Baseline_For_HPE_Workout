@@ -24,6 +24,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import yaml
 import torch.distributed as dist
+import cv2
 
 from utils.function import AverageMeter
 from tensorboardX import SummaryWriter
@@ -129,7 +130,7 @@ def main(rank):
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=config.DEMO.BS,
-        shuffle=False,
+        shuffle=True,
         num_workers=config.WORKERS,
         pin_memory=True
     )
@@ -143,9 +144,21 @@ def main(rank):
     # switch to evaluate mode
     model.eval()
 
+    # View idx
+    view_keys = ['view1', 'view2', 'view3', 'view4', 'view5']
     with torch.no_grad():
-        for step, meta in enumerate(dataloader):
+        for step, (data, path) in enumerate(dataloader):
             # Generate Image Path from meta
+            label2image = path[0].replace('label', 'image').split('/')
+            base_path = os.path.join('/'.join(label2image[:7]),(label2image[8]))
+            for view_idx in view_keys:
+                for frame_idx in range(len(data['frames'])):
+                    img_path = base_path + '/' + data['frames'][frame_idx][view_idx]['img_key'][0]
+                    print(img_path)
+                    if img_path == '/storage/jysuh/fitness/fitness/validation/image/babel_01/Day07_200929_F/5/A/011-1-1-01-Z21_A/011-1-1-01-Z21_A-0000002.jpg':
+                        pass
+                    data_numpy = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+
 
             print()
             # Image Load and Preprocess
