@@ -18,7 +18,7 @@ config.LOG_DIR = ''
 config.DATA_DIR = ''
 #
 config.GPUS ='1'          # '0,1'
-config.WORKERS = 8
+config.WORKERS = 0
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
