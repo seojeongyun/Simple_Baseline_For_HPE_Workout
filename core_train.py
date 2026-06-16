@@ -260,9 +260,9 @@ def main(rank):
 
             if best_model:
                 if not config.MODEL.PRETRAINED:
-                    torch.save(model.state_dict(),os.path.join(final_output_dir, 'from_scratch_512_128.pth.tar'))
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight] from_scratch_512_128.pth.tar'))
                 if config.MODEL.PRETRAINED:
-                    torch.save(model.state_dict(),os.path.join(final_output_dir, 'finetune.pth_input_size_512_512.tar'))
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight] finetune_512_128.pth.tar'))
 
                 logger.info('=> saving checkpoint to {}'.format(final_output_dir))
 
@@ -274,8 +274,15 @@ def main(rank):
         logger.info('saving final model state to {}'.format(
             final_model_state_file))
 
-        if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-            torch.save(model.module.state_dict(), final_model_state_file)
+        is_main_process = (not config.USE_DDP) or (dist.is_initialized() and dist.get_rank() == 0)
+
+        if is_main_process:
+            if hasattr(model, "module"):
+                state_dict = model.module.state_dict()
+            else:
+                state_dict = model.state_dict()
+
+            torch.save(state_dict, final_model_state_file)
 
         writer_dict['writer'].close()
 
