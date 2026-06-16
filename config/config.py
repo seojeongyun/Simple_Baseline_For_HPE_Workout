@@ -61,8 +61,8 @@ MODEL_EXTRAS = {
 # common params for NETWORK
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
-config.MODEL.INIT_WEIGHTS = True   # True / False
-config.MODEL.PRETRAINED = False
+config.MODEL.INIT_WEIGHTS = False   # True / False
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
