@@ -146,6 +146,7 @@ def main(rank):
     with torch.no_grad():
         for step, meta in enumerate(dataloader):
             # Generate Image Path from meta
+
             print()
             # Image Load and Preprocess
 
