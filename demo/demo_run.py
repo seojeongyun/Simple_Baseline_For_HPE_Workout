@@ -36,9 +36,6 @@ from utils.utils import get_optimizer
 
 from utils.utils import create_logger
 from easydict import EasyDict as edict
-from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel
 
 
 def cleanup():
@@ -69,21 +66,18 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  # multi-GPU
 
-    # CUDA ?? determinism ??
+    # CUDA
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-    # (??) ?? deterministic (?? ??? ? ??)
     torch.use_deterministic_algorithms(True)
 
-    # (??) hashing ??
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 def main(rank):
     set_seed(42)
 
     # Generate configuration
-    gen_config(config_save_path='/storage/jysuh/Simple_Baseline_For_HPE_Workout/config/workout.yaml')
+    gen_config(config_save_path='/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/workout.yaml')
 
     # Set Device
     device = torch.device(f"cuda:{config.GPUS}" if torch.cuda.is_available() else "cpu")
@@ -100,9 +94,8 @@ def main(rank):
     torch.backends.cudnn.enabled = config.CUDNN.ENABLED
 
     # copy model file
-    this_dir = os.path.dirname(__file__)
     shutil.copy2(
-        os.path.join(this_dir, 'models', config.MODEL.NAME + '.py'),    # pose_resnet.py copy to final_output_dir
+        os.path.join('/storage/jysuh/Simple_Baseline_For_HPE_Workout', 'models', config.MODEL.NAME + '.py'),    # pose_resnet.py copy to final_output_dir
         final_output_dir)
 
     writer_dict = {
@@ -153,7 +146,7 @@ def main(rank):
     with torch.no_grad():
         for step, meta in enumerate(dataloader):
             # Generate Image Path from meta
-
+            print()
             # Image Load and Preprocess
 
             # Use Image to Input
@@ -165,51 +158,51 @@ def main(rank):
             target = target.cuda(int(config.GPUS), non_blocking=True)
             target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
 
-                # compute output
-                output = model(input)
-
-                loss = criterion(output, target, target_weight)
-
-                num_images = input.size(0)
-
-                # measure accuracy and record loss
-                losses.update(loss.item(), num_images)
-                _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
-                                                 target.cpu().numpy(), thr=config.ACC_THR)
-
-                acc.update(avg_acc, cnt)
-
-                # measure elapsed time
-                batch_time.update(time.time() - end)
-                end = time.time()
-
-                # if i % config.PRINT_FREQ == 0:
-                if (i + 1) % max_val_images == 0:
-                    msg = 'Epoch: [{0}][{1}/{2}]\t' \
-                          'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
-                          'Speed {speed:.1f} samples/s\t' \
-                          'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
-                          'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
-                          'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
-                        0, i, len(val_loader), batch_time=batch_time,
-                        speed=input.size(0) / batch_time.val,
-                        data_time=data_time, loss=losses, acc=acc)
-                    logger.info(msg)
-
-                    if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
-                        writer = writer_dict['writer']
-                        global_steps = writer_dict['train_global_steps']
-                        writer.add_scalar('val/loss', losses.val, global_steps)
-                        writer.add_scalar('val/acc', acc.val, global_steps)
-                        writer_dict['train_global_steps'] = global_steps + 1
-
-                        result, ori, hm = plot_train_batch(config, input, output)
-                        valid_result = [result, ori, hm]
-                        write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
-
-                        prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
-                        save_debug_images(config, input, meta, target, pred * 4, output,
-                                          prefix)
+                # # compute output
+                # output = model(input)
+                #
+                # loss = criterion(output, target, target_weight)
+                #
+                # num_images = input.size(0)
+                #
+                # # measure accuracy and record loss
+                # losses.update(loss.item(), num_images)
+                # _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
+                #                                  target.cpu().numpy(), thr=config.ACC_THR)
+                #
+                # acc.update(avg_acc, cnt)
+                #
+                # # measure elapsed time
+                # batch_time.update(time.time() - end)
+                # end = time.time()
+                #
+                # # if i % config.PRINT_FREQ == 0:
+                # if (i + 1) % max_val_images == 0:
+                #     msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                #           'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                #           'Speed {speed:.1f} samples/s\t' \
+                #           'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                #           'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                #           'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
+                #         0, i, len(val_loader), batch_time=batch_time,
+                #         speed=input.size(0) / batch_time.val,
+                #         data_time=data_time, loss=losses, acc=acc)
+                #     logger.info(msg)
+                #
+                #     if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                #         writer = writer_dict['writer']
+                #         global_steps = writer_dict['train_global_steps']
+                #         writer.add_scalar('val/loss', losses.val, global_steps)
+                #         writer.add_scalar('val/acc', acc.val, global_steps)
+                #         writer_dict['train_global_steps'] = global_steps + 1
+                #
+                #         result, ori, hm = plot_train_batch(config, input, output)
+                #         valid_result = [result, ori, hm]
+                #         write_tbimg(config, writer_dict['writer'], imgs=valid_result, step=i, type='validation')
+                #
+                #         prefix = '{}_{}'.format(os.path.join(output_dir, 'validation'), i)
+                #         save_debug_images(config, input, meta, target, pred * 4, output,
+                #                           prefix)
 
 if __name__ == '__main__':
     from setproctitle import *

@@ -31,17 +31,14 @@ logger = logging.getLogger(__name__)
 
 
 class JointsDataset(Dataset):
-    def __init__(self, cfg, task, root, dataset_type, transform=None):
+    def __init__(self, cfg, root, transform=None):
         self.cfg = cfg
         self.root = root
-        self.task = task
         #
         self.num_joints = 24
         self.pixel_std = 200
         self.flip_pairs = []
         self.parent_ids = []
-
-        self.dataset_type = dataset_type        # whether the dataset is train or validation
 
         self.output_path = cfg.OUTPUT_DIR
         self.data_format = cfg.DATASET.DATA_FORMAT
