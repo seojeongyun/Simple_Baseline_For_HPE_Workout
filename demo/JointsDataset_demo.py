@@ -82,7 +82,7 @@ class JointsDataset(Dataset):
         with open(json_file, 'r', encoding='utf-8') as f:
             meta = json.load(f)
 
-        return meta
+        return meta, json_file
 
     def select_data(self, db):
         db_selected = []
