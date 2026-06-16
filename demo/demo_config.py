@@ -33,6 +33,9 @@ config.USE_AMP = False
 config.DEMO = edict()
 config.DEMO.MODE = 'VALID' # TRAIN or VALID
 config.DEMO.BS = 1
+config.DEMO.BASE_PATH = '/storage/jysuh/fitness/fitness/train/label'
+assert os.path.exists(config.DEMO.BASE_PATH)
+
 config.DEMO.JSON_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/valid_json_files_path.json'
 
 # Cudnn related params
