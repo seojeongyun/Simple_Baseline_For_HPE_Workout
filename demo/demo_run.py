@@ -147,7 +147,7 @@ def main(rank):
     # View idx
     view_keys = ['view1', 'view2', 'view3', 'view4', 'view5']
     with torch.no_grad():
-        for step, (data, path) in enumerate(dataloader):
+        for step, (data, path, workout_name, conditions) in enumerate(dataloader):
             # Generate Image Path from meta
             label2image = path[0].replace('label', 'image').split('/')
             base_path = os.path.join('/'.join(label2image[:7]),(label2image[8]))
@@ -195,6 +195,7 @@ def main(rank):
                                POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
 
                     # Pts Save
+
 
                 #
                 # # measure accuracy and record loss

@@ -80,9 +80,10 @@ class JointsDataset(Dataset):
         # Video level processing
         json_file = self.json_files[idx]
         with open(json_file, 'r', encoding='utf-8') as f:
-            meta = json.load(f)
-
-        return meta, json_file
+            data = json.load(f)
+            workout_name = data['type_info']['exercise']
+            conditions = data['type_info']['conditions']
+        return data, json_file, workout_name, conditions
 
     def select_data(self, db):
         db_selected = []
