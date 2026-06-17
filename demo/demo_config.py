@@ -33,10 +33,14 @@ config.USE_AMP = False
 config.DEMO = edict()
 config.DEMO.MODE = 'VALID' # TRAIN or VALID
 config.DEMO.BS = 1
+
 config.DEMO.BASE_PATH = '/storage/jysuh/fitness/fitness/train/label'
 assert os.path.exists(config.DEMO.BASE_PATH)
-
 config.DEMO.JSON_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/valid_json_files_path.json'
+config.DEMO.VOCAB_PATH = ['/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/vocab/valid_vocab.pkl',
+                          '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/vocab/condition_vocab.pkl']
+config.DEMO.BATCH_SIZE = 1
+
 
 # Cudnn related params
 config.CUDNN = edict()
@@ -64,7 +68,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/[Weight] finetune_512_128.pth.tar'
 
 config.MODEL.NUM_JOINTS = 24
 config.MODEL.IMAGE_SIZE = [512, 512]  # width * height, ex: 192 * 256
@@ -166,7 +170,7 @@ config.TEST.SHUFFLE = False # True if config.TASK != 'get_sequences_for_tf' else
 
 # debug
 config.DEBUG = edict()
-config.DEBUG.VISUALIZATION = False
+config.DEBUG.VISUALIZATION = True
 config.DEBUG.DEBUG = False
 config.DEBUG.SAVE_BATCH_IMAGES_GT = False
 config.DEBUG.SAVE_BATCH_IMAGES_PRED = False
