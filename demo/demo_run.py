@@ -117,15 +117,15 @@ def main(rank):
     #                          config.MODEL.IMAGE_SIZE[0]))
     # writer_dict['writer'].add_graph(model.cpu(), (dump_input, ), verbose=False)
 
-    # Data loading code
+    # Normalize
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
+    to_tensor = transforms.ToTensor()
 
+    # Data loading code
     from demo.JointsDataset_demo import JointsDataset
 
-    dataset = JointsDataset(cfg=config,
-                         root=config.DEMO.JSON_PATH,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
+    dataset = JointsDataset(cfg=config,root=config.DEMO.JSON_PATH)
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -134,6 +134,18 @@ def main(rank):
         num_workers=config.WORKERS,
         pin_memory=True
     )
+
+    # Load Vocabulary
+    import pickle
+
+    # [1] Workout
+    with open(config.DEMO.VOCAB_PATH[0], 'rb') as f:
+        workout_vocab = pickle.load(f)
+
+    # [2] Conditions
+    with open(config.DEMO.VOCAB_PATH[1], 'rb') as f:
+        conditions_vocab = pickle.load(f)
+
 
     # Set Average Meter (Metric)
     batch_time = AverageMeter()
@@ -154,9 +166,11 @@ def main(rank):
             for view_idx in view_keys:
                 for frame_idx in range(len(data['frames'])):
                     img_path = base_path + '/' + data['frames'][frame_idx][view_idx]['img_key'][0]
-                    print(img_path)
+
+                    # Debug
                     if img_path == '/storage/jysuh/fitness/fitness/validation/image/babel_01/Day07_200929_F/5/A/011-1-1-01-Z21_A/011-1-1-01-Z21_A-0000002.jpg':
                         pass
+
                     # Load an Image
                     data_numpy = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
                     if data_numpy is None:
@@ -181,20 +195,57 @@ def main(rank):
                     data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
 
                     # Forward pass
-                    output = model(data_numpy)
+                    data_tensor = to_tensor(data_numpy)  # [H,W,C] uint8 0~255 -> [C,H,W] float 0~1
+                    input_data = normalize(data_tensor)  # Normalize
+                    input_data = input_data.unsqueeze(0)  # [C,H,W] -> [1,C,H,W]
+                    input_data = input_data.to(device)
+                    output = model(input_data)
 
                     # Extract Joints Points
                     hm_flatten = output.detach().cpu().\
-                        reshape(config.TRAIN.BATCH_SIZE, config.MODEL.NUM_JOINTS,-1).argmax(axis=2)
+                        reshape(config.DEMO.BATCH_SIZE, config.MODEL.NUM_JOINTS,-1).argmax(axis=2)
                     y, x = torch.div(hm_flatten, POSE_RESNET.HEATMAP_SIZE[0], rounding_mode='floor'), \
                         hm_flatten % POSE_RESNET.HEATMAP_SIZE[0]
                     coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
+
+                    # DEBUG: Visualization
+                    if config.DEBUG.VISUALIZATION:
+                        import matplotlib.pyplot as plt
+                        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+                        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+                        #
+                        if isinstance(input_data, torch.Tensor):
+                            input_img = input_data.cpu().detach().numpy()
+                            for batch_idx in range(input_data.shape[0]):
+                                img = input_img[batch_idx].transpose(1, 2, 0)
+                                img = img * std + mean
+                                img = np.clip(img, 0, 1)
+                                #
+                                plt.figure()
+                                plt.imshow(img)
+                                for x, y in coords[batch_idx]:
+                                    x, y = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0], y.float() / \
+                                           POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
+                                    plt.scatter(x, y)
+                                plt.axis('off')
+                                plt.show()
 
                     for x, y in coords[0]:
                         x, y = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0], y.float() / \
                                POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
 
                     # Pts Save
+                    # [1] Extension Dim 2 to 4 (x,y,workout_name,joint_name)
+                    x_norm = x / config.IMG_SIZE[0]
+                    y_norm = y / config.IMG_SIZE[1]
+                    a_frame[joint_name] = np.array([x_norm, y_norm, jointvocab[joint_name], exercise_name],
+                                                   dtype=np.float32)
+                    # [2] MaxFrame Padding: if frame len of current video is smaller than max_frame
+                    if int(list(videos[video_idx].keys())[-1]) != self.config.MAX_FRAMES - 1:
+                        for i in range(int(list(videos[video_idx].keys())[-1]) + 1, self.config.MAX_FRAMES):
+                            videos[video_idx].setdefault(str(i),{k: np.zeros(self.in_features, dtype=np.float32) for k in self.config.JOINTS_NAME})
+
+
 
 
                 #
