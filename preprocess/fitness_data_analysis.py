@@ -34,8 +34,8 @@ if __name__ == '__main__':
                 if '3d' not in (json_file):
                     json_list.append(json_file) # 34468
 
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/valid.json', 'w', encoding='utf-8') as f:
-        json.dump(json_list, f, ensure_ascii=False, indent=4)
+    # with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/valid.json', 'w', encoding='utf-8') as f:
+    #     json.dump(json_list, f, ensure_ascii=False, indent=4)
     # ===== ===== ===== ===== =====
 
 

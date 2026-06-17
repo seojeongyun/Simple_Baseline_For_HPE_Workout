@@ -65,7 +65,7 @@ if __name__ == '__main__':
     coord_dict = {}
     thr_num_files = 0
     cnt = 0
-    save_condition = True
+    save_condition = False
     if save_condition:
         with open('/home/jysuh/PycharmProjects/coord_embedding/dataset/embedder_dataset/condition_vocab.pkl',
                   'rb') as f:
