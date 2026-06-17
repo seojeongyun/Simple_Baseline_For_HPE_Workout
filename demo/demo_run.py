@@ -28,7 +28,7 @@ import cv2
 
 from utils.function import AverageMeter
 from tensorboardX import SummaryWriter
-from demo.demo_config import config
+from demo.demo_config import config, POSE_RESNET
 from models.loss import JointsMSELoss
 from utils.function import train
 from utils.function import validate
@@ -157,27 +157,45 @@ def main(rank):
                     print(img_path)
                     if img_path == '/storage/jysuh/fitness/fitness/validation/image/babel_01/Day07_200929_F/5/A/011-1-1-01-Z21_A/011-1-1-01-Z21_A-0000002.jpg':
                         pass
+                    # Load an Image
                     data_numpy = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                    if data_numpy is None:
+                        print(f"Failed to read image: {img_path}")
+                        continue
 
+                    # Image Crop and Resize
+                    CROP = 1080
+                    H, W = data_numpy.shape[:2]  # H=1080, W=1920
+                    cx, cy = W / 2.0, H / 2.0  # (960, 540)
 
-            print()
-            # Image Load and Preprocess
+                    # Crop
+                    x0, x1 = int(round(cx - CROP / 2)), int(round(cx + CROP / 2))
+                    y0, y1 = int(round(cy - CROP / 2)), int(round(cy + CROP / 2))
+                    cropped = data_numpy[y0:y1, x0:x1]
 
-            # Use Image to Input
+                    # Resize
+                    out_w, out_h = config.MODEL.IMAGE_SIZE
+                    data_numpy = cv2.resize(cropped, (out_w, out_h))
 
-            # measure data loading time
+                    # BGR2RGB
+                    data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
 
+                    # Forward pass
+                    output = model(data_numpy)
 
-            input = input.cuda(int(config.GPUS), non_blocking=True)
-            target = target.cuda(int(config.GPUS), non_blocking=True)
-            target_weight = target_weight.cuda(int(config.GPUS), non_blocking=True)
+                    # Extract Joints Points
+                    hm_flatten = output.detach().cpu().\
+                        reshape(config.TRAIN.BATCH_SIZE, config.MODEL.NUM_JOINTS,-1).argmax(axis=2)
+                    y, x = torch.div(hm_flatten, POSE_RESNET.HEATMAP_SIZE[0], rounding_mode='floor'), \
+                        hm_flatten % POSE_RESNET.HEATMAP_SIZE[0]
+                    coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
 
-                # # compute output
-                # output = model(input)
-                #
-                # loss = criterion(output, target, target_weight)
-                #
-                # num_images = input.size(0)
+                    for x, y in coords[0]:
+                        x, y = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0], y.float() / \
+                               POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
+
+                    # Pts Save
+
                 #
                 # # measure accuracy and record loss
                 # losses.update(loss.item(), num_images)
