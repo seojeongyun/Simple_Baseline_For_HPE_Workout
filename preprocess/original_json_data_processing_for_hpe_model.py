@@ -7,9 +7,18 @@ import numpy as np
 from glob import glob
 from tqdm import tqdm
 
+JSON_JOINT_ORDER = [
+        'Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear',
+        'Left Shoulder', 'Right Shoulder', 'Left Elbow', 'Right Elbow',
+        'Left Wrist', 'Right Wrist', 'Left Hip', 'Right Hip',
+        'Left Knee', 'Right Knee', 'Left Ankle', 'Right Ankle',
+        'Neck', 'Left Palm', 'Right Palm', 'Back', 'Waist',
+        'Left Foot', 'Right Foot'
+    ]
+
 if __name__ == '__main__':
     import glob
-    type = 'valid' # or 'valid
+    type = 'train' # or 'valid
     if type == 'train':
         base_path = '/storage/jysuh/fitness/fitness/train/label'
     else:
@@ -88,6 +97,17 @@ if __name__ == '__main__':
                         cnt += 1
                         if img_path not in data_dict.keys():
                             jnt += 1
+                            pts = data['frames'][frame_idx][view_idx]['pts']
+                            missing = [joint for joint in JSON_JOINT_ORDER if joint not in pts]
+
+                            if missing:
+                                raise ValueError(f"Missing joints: {missing} | "
+                                    f"json_file={json_file} | frame_idx={frame_idx} | view_idx={view_idx}")
+
+                            extra = [joint for joint in pts if joint not in JSON_JOINT_ORDER]
+
+                            if extra:
+                                raise ValueError(f"Unexpected joints: {extra}")
 
                             # JOINTS
                             joints = []
@@ -95,13 +115,13 @@ if __name__ == '__main__':
                             #
                             data_dict.setdefault(img_path, {'joints': None})
                             #
-                            for joint_idx, joint in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
+                            for joint_idx, joint in enumerate(JSON_JOINT_ORDER):
                                 joint_pts = [data['frames'][frame_idx][view_idx]['pts'][joint]['x'], data['frames'][frame_idx][view_idx]['pts'][joint]['y'], 0.]
                                 joints.append(joint_pts)
 
                             data_dict[img_path]['joints'] = joints
 
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/train_.json', 'w', encoding='utf-8') as f:
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/real_HPE_train_data.json', 'w', encoding='utf-8') as f:
         json.dump(data_dict, f, ensure_ascii=False, indent=4)
     # ===== ===== ===== =====
 
