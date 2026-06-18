@@ -40,8 +40,20 @@ config.DEMO.JSON_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/val
 config.DEMO.VOCAB_PATH = ['/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/vocab/valid_vocab.pkl',
                           '/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/vocab/condition_vocab.pkl']
 config.DEMO.BATCH_SIZE = 1
-
-
+config.DEMO.MAX_FRAMES = 21
+config.DEMO.JOINTS_NAME = [
+    'Left Shoulder', 'Right Shoulder',
+    'Left Elbow', 'Right Elbow',
+    'Left Wrist', 'Right Wrist',
+    'Left Hip', 'Right Hip',
+    'Left Knee', 'Right Knee',
+    'Left Ankle', 'Right Ankle',
+    'Neck', 'Left Palm',
+    'Right Palm', 'Back',
+    'Waist', 'Left Foot',
+    'Right Foot', 'Head'
+    ]
+config.DEMO.ORIG_IMAGE_SIZE = [1920, 1080]
 # Cudnn related params
 config.CUDNN = edict()
 config.CUDNN.BENCHMARK = True
@@ -170,7 +182,7 @@ config.TEST.SHUFFLE = False # True if config.TASK != 'get_sequences_for_tf' else
 
 # debug
 config.DEBUG = edict()
-config.DEBUG.VISUALIZATION = True
+config.DEBUG.VISUALIZATION = False
 config.DEBUG.DEBUG = False
 config.DEBUG.SAVE_BATCH_IMAGES_GT = False
 config.DEBUG.SAVE_BATCH_IMAGES_PRED = False

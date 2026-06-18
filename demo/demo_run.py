@@ -160,16 +160,31 @@ def main(rank):
     # View idx
     view_keys = ['view1', 'view2', 'view3', 'view4', 'view5']
     head_key = ['Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear']
+    JSON_JOINT_ORDER = [
+        'Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear',
+        'Left Shoulder', 'Right Shoulder', 'Left Elbow', 'Right Elbow',
+        'Left Wrist', 'Right Wrist', 'Left Hip', 'Right Hip',
+        'Left Knee', 'Right Knee', 'Left Ankle', 'Right Ankle',
+        'Neck', 'Left Palm', 'Right Palm', 'Back', 'Waist',
+        'Left Foot', 'Right Foot'
+    ]
+    except_path = []
     with torch.no_grad():
         videos = []
         for step, (data, path, workout_name, conditions) in enumerate(dataloader):
+            # for frame_idx in range(len(data['frames'])):
+            #     for view_idx in data['frames'][frame_idx].keys():
+            #         if EXPECTED_JOINT_ORDER != list(data['frames'][frame_idx][view_idx]['pts'].keys()):
+            #             except_path.append(path[0])
+
+        # print()
             # Generate Image Path from meta
             label2image = path[0].replace('label', 'image').split('/')
             base_path = os.path.join('/'.join(label2image[:7]),(label2image[8]))
             for view_idx in view_keys:
                 a_video = {}
                 for frame_idx in range(len(data['frames'])):
-                    a_frame_pts = copy.deepcopy(data['frames'][frame_idx][view_idx]['pts'])
+                    a_frame_pts = {k:[] for k in config.DEMO.JOINTS_NAME}
                     img_path = base_path + '/' + data['frames'][frame_idx][view_idx]['img_key'][0]
 
                     # Debug
@@ -180,7 +195,7 @@ def main(rank):
                     data_numpy = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
                     if data_numpy is None:
                         print(f"Failed to read image: {img_path}")
-                        continue
+                        raise ValueError("Failed to read image")
 
                     # Image Crop and Resize
                     CROP = 1080
@@ -281,25 +296,36 @@ def main(rank):
                     #                 debug_pause = joint_idx
 
                     head_x, head_y = 0, 0
-                    for i, joint_name in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
+                    for i, joint_name in enumerate(JSON_JOINT_ORDER):
                         # The 'coord' predicted by the model (extracted from the heatmap)
                         # follow the same joint order as the key sequence in the JSON 'pts' data.
 
                         # [0] Making Head Pts and Extension Dim 2 to 4 (x,y,workout_name,joint_name)
                         if joint_name in head_key:
-                            head_x += coords[0][i][0]
-                            head_y += coords[0][i][1]
+                            orig_head_x = coords[0][i][0].float() / POSE_RESNET.HEATMAP_SIZE[0] * CROP \
+                                          + ((config.DEMO.ORIG_IMAGE_SIZE[0] - CROP) / 2)
+                            norm_head_x = orig_head_x / config.DEMO.ORIG_IMAGE_SIZE[0]
+                            #
+                            orig_head_y = coords[0][i][1].float() / POSE_RESNET.HEATMAP_SIZE[1] * CROP
+                            norm_head_y = orig_head_y / config.DEMO.ORIG_IMAGE_SIZE[1]
+                            #
+                            head_x += norm_head_x
+                            head_y += norm_head_y
 
                         if joint_name not in head_key:
                             x, y = coords[0][i]
-                            x_norm, y_norm = x.float() / POSE_RESNET.HEATMAP_SIZE[0], y.float() / POSE_RESNET.HEATMAP_SIZE[1]
+                            #
+                            orig_x = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * CROP + ((config.DEMO.ORIG_IMAGE_SIZE[0] - CROP) / 2)
+                            orig_y = y.float() / POSE_RESNET.HEATMAP_SIZE[1] * CROP
+                            #
+                            x_norm = orig_x / config.DEMO.ORIG_IMAGE_SIZE[0]
+                            y_norm = orig_y / config.DEMO.ORIG_IMAGE_SIZE[1]
+                            #
                             a_frame_pts[joint_name] = \
                                 np.array([x_norm, y_norm, workout_vocab[joint_name], workout_vocab[workout_name[0]]],dtype=np.float32)
                     #
-                    norm_head_x, norm_head_y = head_x / 5 / POSE_RESNET.HEATMAP_SIZE[0], head_y / 5 / POSE_RESNET.HEATMAP_SIZE[1]
+                    norm_head_x, norm_head_y = head_x / 5, head_y / 5
                     a_frame_pts['Head'] = np.array([norm_head_x, norm_head_y, workout_vocab['Head'], workout_vocab[workout_name[0]]],dtype=np.float32)
-                    for del_key in head_key:
-                        del a_frame_pts[del_key]
                     a_video[str(frame_idx)] = a_frame_pts
 
                 # [2] MaxFrame Padding: if frame len of current video is smaller than max_frame
@@ -320,7 +346,10 @@ def main(rank):
                     conditions_lst.append([conditions_idx, value])
 
                 # [5] Final Output
-                videos.append([a_video, workout_idx, conditions_lst])
+                # [5-1] Check Frame order  /  # [5-2] Check Joint order
+                expected_keys = [str(i) for i in range(21)]
+                if list(a_video.keys()) == expected_keys:
+                    videos.append([a_video, workout_idx, conditions_lst])
 
                 print()
 
