@@ -12,6 +12,7 @@ import os
 import pprint
 import shutil
 import json
+import copy
 import random
 import numpy as np
 import time
@@ -158,13 +159,17 @@ def main(rank):
 
     # View idx
     view_keys = ['view1', 'view2', 'view3', 'view4', 'view5']
+    head_key = ['Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear']
     with torch.no_grad():
+        videos = []
         for step, (data, path, workout_name, conditions) in enumerate(dataloader):
             # Generate Image Path from meta
             label2image = path[0].replace('label', 'image').split('/')
             base_path = os.path.join('/'.join(label2image[:7]),(label2image[8]))
             for view_idx in view_keys:
+                a_video = {}
                 for frame_idx in range(len(data['frames'])):
+                    a_frame_pts = copy.deepcopy(data['frames'][frame_idx][view_idx]['pts'])
                     img_path = base_path + '/' + data['frames'][frame_idx][view_idx]['img_key'][0]
 
                     # Debug
@@ -230,22 +235,94 @@ def main(rank):
                                 plt.axis('off')
                                 plt.show()
 
-                    for x, y in coords[0]:
-                        x, y = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0], y.float() / \
-                               POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
+                    # DEBUG: Visualization
+                    # Place a breakpoint 'debug_pause = joint_idx' and press F9 repeatedly to visualize joints sequentially on the image.
 
-                    # Pts Save
-                    # [1] Extension Dim 2 to 4 (x,y,workout_name,joint_name)
-                    x_norm = x / config.IMG_SIZE[0]
-                    y_norm = y / config.IMG_SIZE[1]
-                    a_frame[joint_name] = np.array([x_norm, y_norm, jointvocab[joint_name], exercise_name],
-                                                   dtype=np.float32)
-                    # [2] MaxFrame Padding: if frame len of current video is smaller than max_frame
-                    if int(list(videos[video_idx].keys())[-1]) != self.config.MAX_FRAMES - 1:
-                        for i in range(int(list(videos[video_idx].keys())[-1]) + 1, self.config.MAX_FRAMES):
-                            videos[video_idx].setdefault(str(i),{k: np.zeros(self.in_features, dtype=np.float32) for k in self.config.JOINTS_NAME})
+                    # if config.DEBUG.VISUALIZATION:
+                    #     import matplotlib.pyplot as plt
+                    #     mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+                    #     std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+                    #     #
+                    #     if isinstance(input_data, torch.Tensor):
+                    #         input_img = input_data.cpu().detach().numpy()
+                    #         plt.ion()
+                    #
+                    #         for batch_idx in range(input_data.shape[0]):
+                    #             img = input_img[batch_idx].transpose(1, 2, 0)
+                    #             img = img * std + mean
+                    #             img = np.clip(img, 0, 1)
+                    #
+                    #             fig, ax = plt.subplots(figsize=(8, 8))
+                    #             ax.imshow(img)
+                    #             ax.axis('off')
+                    #
+                    #             plt.show(block=False)
+                    #             plt.pause(1.0)
+                    #
+                    #             for joint_idx, (x, y) in enumerate(coords[batch_idx]):
+                    #                 px = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[
+                    #                     0]
+                    #                 py = y.float() / POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[
+                    #                     1]
+                    #
+                    #                 px = px.item()
+                    #                 py = py.item()
+                    #
+                    #                 print(f"joint_idx={joint_idx}, x={px:.2f}, y={py:.2f}")
+                    #
+                    #                 ax.scatter(px, py, s=80, c='red', marker='o', zorder=10)
+                    #                 ax.text(px, py, str(joint_idx), color='yellow', fontsize=10, zorder=11)
+                    #
+                    #                 plt.show(block=False)
+                    #                 fig.canvas.draw()
+                    #                 fig.canvas.flush_events()
+                    #                 plt.pause(1.0)
+                    #
+                    #                 debug_pause = joint_idx
 
+                    head_x, head_y = 0, 0
+                    for i, joint_name in enumerate(data['frames'][frame_idx][view_idx]['pts'].keys()):
+                        # The 'coord' predicted by the model (extracted from the heatmap)
+                        # follow the same joint order as the key sequence in the JSON 'pts' data.
 
+                        # [0] Making Head Pts and Extension Dim 2 to 4 (x,y,workout_name,joint_name)
+                        if joint_name in head_key:
+                            head_x += coords[0][i][0]
+                            head_y += coords[0][i][1]
+
+                        if joint_name not in head_key:
+                            x, y = coords[0][i]
+                            x_norm, y_norm = x.float() / POSE_RESNET.HEATMAP_SIZE[0], y.float() / POSE_RESNET.HEATMAP_SIZE[1]
+                            a_frame_pts[joint_name] = \
+                                np.array([x_norm, y_norm, workout_vocab[joint_name], workout_vocab[workout_name[0]]],dtype=np.float32)
+                    #
+                    norm_head_x, norm_head_y = head_x / 5 / POSE_RESNET.HEATMAP_SIZE[0], head_y / 5 / POSE_RESNET.HEATMAP_SIZE[1]
+                    a_frame_pts['Head'] = np.array([norm_head_x, norm_head_y, workout_vocab['Head'], workout_vocab[workout_name[0]]],dtype=np.float32)
+                    for del_key in head_key:
+                        del a_frame_pts[del_key]
+                    a_video[str(frame_idx)] = a_frame_pts
+
+                # [2] MaxFrame Padding: if frame len of current video is smaller than max_frame
+                if config.DEMO.MAX_FRAMES != len(a_video.keys()):
+                    for i in range(len(a_video.keys()), config.DEMO.MAX_FRAMES):
+                        a_video.setdefault(str(i),{k: np.zeros(4, dtype=np.float32) for k in config.DEMO.JOINTS_NAME})
+
+                # [3] Making Workout Name Idx
+                workout_idx = workout_vocab[workout_name[0]]
+
+                # [4] Making Condition Idx
+                condition_dict = data['type_info']['conditions']
+                conditions_lst = []
+                for i in range(len(condition_dict)):
+                    condition_name = condition_dict[i]['condition']
+                    conditions_idx = conditions_vocab[condition_name[0]]
+                    value = int(condition_dict[i]['value'][0])
+                    conditions_lst.append([conditions_idx, value])
+
+                # [5] Final Output
+                videos.append([a_video, workout_idx, conditions_lst])
+
+                print()
 
 
                 #
