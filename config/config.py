@@ -17,8 +17,8 @@ config.OUTPUT_DIR = './result'
 config.LOG_DIR = ''
 config.DATA_DIR = ''
 #
-config.GPUS ='1'          # '0,1'
-config.WORKERS = 8
+config.GPUS ='0'          # '0,1'
+config.WORKERS = 0
 config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
@@ -62,7 +62,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/[Weight, New_Data] finetune_512_128.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
@@ -87,9 +87,9 @@ config.DATASET.ROOT_VALID_IMAGE = '/storage/jysuh/fitness/fitness/validation/ima
 config.DATASET.ROOT = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/data.json'
 config.DATASET.DATASET = 'workout'
 #
-config.DATASET.TRAIN_SET_PATH= './json_files/train_img_paths.json'
+config.DATASET.TRAIN_SET_PATH= './json_files/real_HPE_train_data.json'
 # config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
-config.DATASET.VALID_SET_PATH= './json_files/valid_img_paths.json'
+config.DATASET.VALID_SET_PATH= './json_files/real_HPE_valid_data.json'
 config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
 config.DATASET.DATA_FORMAT = 'jpg'
