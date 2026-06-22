@@ -262,14 +262,14 @@ def main(rank):
                 if not config.MODEL.PRETRAINED:
                     torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight] from_scratch_512_128.pth.tar'))
                 if config.MODEL.PRETRAINED:
-                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight] finetune_512_128.pth.tar'))
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight, New_Data] finetune_512_128.pth.tar'))
 
                 logger.info('=> saving checkpoint to {}'.format(final_output_dir))
 
             lr_scheduler.step()
         #
         final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
-                                              'final_state.pth.tar')
+                                              '[New_Data] final_state.pth.tar')
 
         logger.info('saving final model state to {}'.format(
             final_model_state_file))
@@ -302,7 +302,7 @@ def main(rank):
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('HPE: From Scratch')
+    setproctitle('HPE: New dataset')
     # setproctitle('Generate Sequences information for transformer')
     if config.USE_DDP:
         torch.multiprocessing.spawn(main,nprocs=config.DDP_OPTS.NGPUS_PER_NODE,join=True)
