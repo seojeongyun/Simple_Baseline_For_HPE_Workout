@@ -253,6 +253,8 @@ class JointsDataset(Dataset):
 
         if self.task == 'get_sequences_for_tf':
             return data_numpy, condition, image_file, video_idx, view_idx, max_frame
+        elif self.task == 'validation':
+            return data_numpy, target, target_weight, meta, image_file
         else:
             return data_numpy, target, target_weight, meta
 
