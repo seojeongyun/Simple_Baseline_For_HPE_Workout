@@ -146,7 +146,7 @@ config.TRAIN.USE_AMP = False
 config.TEST = edict()
 
 # size of images for each device
-config.TEST.BATCH_SIZE = 32 if config.TASK != 'get_sequences_for_tf' else 1
+config.TEST.BATCH_SIZE = 1 if config.TASK != 'get_sequences_for_tf' else 1
 
 # test type
 config.TEST.FULL_EVAL = True # True -> Evaluation for all eval dataset, False -> for some eval dataset

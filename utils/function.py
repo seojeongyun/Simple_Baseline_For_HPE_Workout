@@ -323,7 +323,7 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 end = time.time()
 
                 if acc.val < 0.8:
-                    lower_perf_samples.append(path for path in json_path)
+                    lower_perf_samples.append(json_path)
                     #
                     # # Drawing Heatmap on Original Image
                     # result, ori, hm = plot_train_batch(config, input, output)
