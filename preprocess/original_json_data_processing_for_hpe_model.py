@@ -18,36 +18,47 @@ JSON_JOINT_ORDER = [
 
 if __name__ == '__main__':
     import glob
-    type = 'train' # or 'valid
-    if type == 'train':
-        base_path = '/storage/jysuh/fitness/fitness/train/label'
-    else:
-        base_path = '/storage/jysuh/fitness/fitness/validation/label'
 
-    assert os.path.exists(base_path)
-
-    # ===== get_json_files =====
-    label_path = []
+    type = 'valid'  # or 'valid
+    json_list_valid = []  # 3139
+    json_list_train = []  # 34468
     json_list = []
 
-    for path in os.listdir(base_path):
-        if 'json' not in path: #'furniture' in path or 'new' in path
-            label_path.append(base_path + '/' + path)
+    if type == 'train':
+        base_path = '/storage/jysuh/fitness/fitness/train/label'
+        for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
+            if 'json' not in os.listdir(base_path)[equipment_type_idx] and 'new' not in os.listdir(base_path)[
+                equipment_type_idx]:
+                # equipment_type_list.append(os.listdir(base_path)[equipment_type_idx]) # DB
+                equipment_type_path = '/'.join([base_path, os.listdir(base_path)[equipment_type_idx]])
+                for equipment_idx in range(len(os.listdir(equipment_type_path))):
+                    equipment_path = '/'.join([equipment_type_path, os.listdir(equipment_type_path)[equipment_idx]])
+                    for idx in range(len(os.listdir(equipment_path))):
+                        day_path = '/'.join([equipment_path, os.listdir(equipment_path)[idx]])
 
-    for fitness_type_idx, _ in enumerate(tqdm(label_path, desc="collect every json files in workout directory  ")):
-        for _, num in enumerate(os.listdir(label_path[fitness_type_idx])):
-            path = os.path.join(label_path[fitness_type_idx] + '/' + num)
-            path = path + '/' + os.listdir(path)[0]
-            json_files = glob.glob(path + '/' + '*.json')
-            for _, json_file in enumerate(json_files):
-                if '3d' not in (json_file):
-                    json_list.append(json_file) # 34468
+                    for _, json_files in enumerate(os.listdir(day_path)):
+                        if '3d' not in json_files:
+                            # if os.listdir(base_path)[equipment_type_idx] == 'barbell_dumbbell_Labeling':    # DB
+                            #     bd_list.append(day_path + '/' + json_files) # DB
+                            # elif os.listdir(base_path)[equipment_type_idx] == 'furniture_Labeling': # DB
+                            #     furniture_list.append(day_path + '/' + json_files) # DB
+                            # elif os.listdir(base_path)[equipment_type_idx] == 'body_Labeling': # DB
+                            #     counter[day_path.split('/')[8]] += 1
+                            #     body_list.append(day_path + '/' + json_files)   # DB
+                            json_list.append(day_path + '/' + json_files)
 
-    # with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/valid.json', 'w', encoding='utf-8') as f:
-    #     json.dump(json_list, f, ensure_ascii=False, indent=4)
-    # ===== ===== ===== ===== =====
-
-
+    else:
+        base_path = '/storage/jysuh/fitness/fitness/validation/label'
+        #
+        for equipment_type_idx, _ in enumerate(os.listdir(base_path)):
+            path = base_path + '/' + os.listdir(base_path)[equipment_type_idx]
+            for idx in range(len(os.listdir(path))):
+                path = path + '/' + os.listdir(path)[idx]
+                for idx in range(len(os.listdir(path))):
+                    path = path + '/' + os.listdir(path)[idx]
+            for _, json_files in enumerate(os.listdir(path)):
+                if '3d' not in json_files:
+                    json_list.append(path + '/' + json_files)
 
     # ===== get_data =====
     # data_dict = {'pts' : [] ,
@@ -121,101 +132,103 @@ if __name__ == '__main__':
 
                             data_dict[img_path]['joints'] = joints
 
-    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/real_HPE_train_data.json', 'w', encoding='utf-8') as f:
+    with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/real_HPE_valid_data.json', 'w', encoding='utf-8') as f:
         json.dump(data_dict, f, ensure_ascii=False, indent=4)
-    # ===== ===== ===== =====
 
-    # print(sorted(json_list))    # the number of 2d json files are 34468
-
-    fitness_dict = {}
-    exer = dict(
-        condition=[],
-        description=[],
-    )
-    #
-    description_anal = {}
-    exer_type = []
-
-    cnt = 0
-
-    exer_name_list = []
-
-    for idx in range(len(json_list)):
-        with open(json_list[idx]) as f:
-            exer_name = json.load(f)['type_info']['exercise']
-            if exer_name not in exer_name_list:
-                exer_name_list.append(exer_name)
-
-    for idx in range(len(exer_name_list)):
-        exer_type.append([])
-
-    for idx in range(len(json_list)):
-        with open(json_list[idx]) as f:
-            annot = json.load(f)
-            # ==== extract data ====
-            exer_name = annot['type_info']['exercise']
-            #
-            attrs = annot['type_info']['conditions']
-            #
-            description = annot['type_info']['description']
-            #
-            data = []
-            #
-            # ==== make dict ====
-            if not exer_name in fitness_dict.keys():
-                fitness_dict.setdefault(exer_name, dict(condition=[], description=[]))
-            #
-            if not exer_name in description_anal.keys():
-                description_anal.setdefault(exer_name, [])
-
-            for idx in range(len(attrs)):
-                data.append(attrs[idx]['value'])
-                if idx == len(attrs)-1:
-                    data.append(description)
-
-            for idx, name in enumerate(exer_name_list):
-                if name == exer_name:
-                    exer_type[idx].append(data)
-                    break
-
-            if exer_name not in exer_name_list:
-                cnt += 1
-                print(exer_name)
-
-
-            if len(fitness_dict[str(exer_name)]['condition']) == 0:
-                for idx in range(len(attrs)):
-                    fitness_dict[str(exer_name)]['condition'].append(attrs[idx]['condition'])
-
-            if not description in fitness_dict[str(exer_name)]['description']:
-                    fitness_dict[str(exer_name)]['description'].append(description)
-
-    for i, name in enumerate(exer_name_list):
-        for j, name_ in enumerate(description_anal.keys()):
-            if name == name_:
-                description_anal[str(name_)].append(exer_type[i])
-                break
-
-    # print(fitness_dict)
-
-description_exer_desc = dict()
-for _, exer_name in enumerate(tqdm(description_anal.keys(), desc="make json file for feedback model")):
-    description_exer_desc.setdefault(exer_name, dict())
-    for idx in range(len(description_anal[exer_name][0])):
-        idx_bool = [np.where(np.array([isinstance(description_anal[exer_name][0][idx][bool_idx], bool) for bool_idx in range(len(description_anal[exer_name][0][idx]))]))[0]][0]
-        value_only = [description_anal[exer_name][0][idx][b_idx] for b_idx in idx_bool]
-        key_value = np.sum([(2**((len(value_only)-1) - aa)) * bool(value_only[aa]) for aa in range(len(value_only))])
-        #
-        idx_all = list(range(len(description_anal[exer_name][0][idx])))
-        for re_value in list(idx_bool):
-            idx_all.remove(re_value)
-        #
-        if key_value not in description_exer_desc[exer_name].keys():
-            description_exer_desc[exer_name].setdefault(int(key_value), [])
-            for idx_str in idx_all:
-                description_exer_desc[exer_name][key_value].append((value_only, description_anal[exer_name][0][idx][idx_str]))
-
-with open('/json_files/feedback_model_label.json', 'w', encoding='utf-8') as f:
-    json.dump(description_exer_desc, f, ensure_ascii=False, indent=4)
+    print('Save done')
+#     # ===== ===== ===== =====
+#
+#     # print(sorted(json_list))    # the number of 2d json files are 34468
+#
+#     fitness_dict = {}
+#     exer = dict(
+#         condition=[],
+#         description=[],
+#     )
+#     #
+#     description_anal = {}
+#     exer_type = []
+#
+#     cnt = 0
+#
+#     exer_name_list = []
+#
+#     for idx in range(len(json_list)):
+#         with open(json_list[idx]) as f:
+#             exer_name = json.load(f)['type_info']['exercise']
+#             if exer_name not in exer_name_list:
+#                 exer_name_list.append(exer_name)
+#
+#     for idx in range(len(exer_name_list)):
+#         exer_type.append([])
+#
+#     for idx in range(len(json_list)):
+#         with open(json_list[idx]) as f:
+#             annot = json.load(f)
+#             # ==== extract data ====
+#             exer_name = annot['type_info']['exercise']
+#             #
+#             attrs = annot['type_info']['conditions']
+#             #
+#             description = annot['type_info']['description']
+#             #
+#             data = []
+#             #
+#             # ==== make dict ====
+#             if not exer_name in fitness_dict.keys():
+#                 fitness_dict.setdefault(exer_name, dict(condition=[], description=[]))
+#             #
+#             if not exer_name in description_anal.keys():
+#                 description_anal.setdefault(exer_name, [])
+#
+#             for idx in range(len(attrs)):
+#                 data.append(attrs[idx]['value'])
+#                 if idx == len(attrs)-1:
+#                     data.append(description)
+#
+#             for idx, name in enumerate(exer_name_list):
+#                 if name == exer_name:
+#                     exer_type[idx].append(data)
+#                     break
+#
+#             if exer_name not in exer_name_list:
+#                 cnt += 1
+#                 print(exer_name)
+#
+#
+#             if len(fitness_dict[str(exer_name)]['condition']) == 0:
+#                 for idx in range(len(attrs)):
+#                     fitness_dict[str(exer_name)]['condition'].append(attrs[idx]['condition'])
+#
+#             if not description in fitness_dict[str(exer_name)]['description']:
+#                     fitness_dict[str(exer_name)]['description'].append(description)
+#
+#     for i, name in enumerate(exer_name_list):
+#         for j, name_ in enumerate(description_anal.keys()):
+#             if name == name_:
+#                 description_anal[str(name_)].append(exer_type[i])
+#                 break
+#
+#     # print(fitness_dict)
+#
+# description_exer_desc = dict()
+# for _, exer_name in enumerate(tqdm(description_anal.keys(), desc="make json file for feedback model")):
+#     description_exer_desc.setdefault(exer_name, dict())
+#     for idx in range(len(description_anal[exer_name][0])):
+#         idx_bool = [np.where(np.array([isinstance(description_anal[exer_name][0][idx][bool_idx], bool) for bool_idx in range(len(description_anal[exer_name][0][idx]))]))[0]][0]
+#         value_only = [description_anal[exer_name][0][idx][b_idx] for b_idx in idx_bool]
+#         key_value = np.sum([(2**((len(value_only)-1) - aa)) * bool(value_only[aa]) for aa in range(len(value_only))])
+#         #
+#         idx_all = list(range(len(description_anal[exer_name][0][idx])))
+#         for re_value in list(idx_bool):
+#             idx_all.remove(re_value)
+#         #
+#         if key_value not in description_exer_desc[exer_name].keys():
+#             description_exer_desc[exer_name].setdefault(int(key_value), [])
+#             for idx_str in idx_all:
+#                 description_exer_desc[exer_name][key_value].append((value_only, description_anal[exer_name][0][idx][idx_str]))
+#
+# with open('/json_files/feedback_model_label.json', 'w', encoding='utf-8') as f:
+#     json.dump(description_exer_desc, f, ensure_ascii=False, indent=4)
 
 
