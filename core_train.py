@@ -227,19 +227,6 @@ def main(rank):
             prefetch_factor=4,
         )
 
-    if config.TASK == 'append_pred_to_label_json_file':
-        from demo.JointsDataset_demo import JointsDataset
-        dataset = JointsDataset(cfg=config,
-                             root=config.DATASET.ROOT_VALID_LABEL,
-                             dataset_type='validation' if config.TASK == 'train' else config.TASK,
-                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
-        dataloader = torch.utils.data.DataLoader(
-                dataset,
-                batch_size=config.TEST.BATCH_SIZE,
-                shuffle=config.TEST.SHUFFLE,
-                num_workers=config.WORKERS,
-                pin_memory=True
-            )
     best_perf = 0.0
     if config.TASK == 'train':
         for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
@@ -269,7 +256,7 @@ def main(rank):
             lr_scheduler.step()
         #
         final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
-                                              '[New_Data] final_state.pth.tar')
+                                              '[New_Data, no_finetune] final_state.pth.tar')
 
         logger.info('saving final model state to {}'.format(
             final_model_state_file))
@@ -302,7 +289,7 @@ def main(rank):
 
 if __name__ == '__main__':
     from setproctitle import *
-    setproctitle('HPE: New dataset')
+    setproctitle('HPE: Collect Lower Perf Samples on Valid')
     # setproctitle('Generate Sequences information for transformer')
     if config.USE_DDP:
         torch.multiprocessing.spawn(main,nprocs=config.DDP_OPTS.NGPUS_PER_NODE,join=True)
