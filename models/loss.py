@@ -13,11 +13,42 @@ import torch.nn as nn
 
 
 class JointsMSELoss(nn.Module):
-    def __init__(self, use_target_weight=True,
+    def __init__(self, use_target_weight=True, use_joint_weighted_loss=False,
                  alpha_range=(8.0, 12.0), beta_range=(1.0, 1.5), gamma=2.0,
                  normalize_weights=True, eps=1e-6):
         super().__init__()
+        self.register_buffer(
+            'joint_weights',
+            torch.tensor([
+                1.0,  # Nose
+                1.0,  # Left Eye
+                1.0,  # Right Eye
+                1.0,  # Left Ear
+                1.0,  # Right Ear
+                2.0,  # Left Shoulder
+                2.0,  # Right Shoulder
+                2.0,  # Left Elbow
+                2.0,  # Right Elbow
+                1.5,  # Left Wrist
+                1.5,  # Right Wrist
+                1.5,  # Left Hip
+                1.5,  # Right Hip
+                3.0,  # Left Knee
+                3.0,  # Right Knee
+                2.0,  # Left Ankle
+                2.0,  # Right Ankle
+                1.0,  # Neck
+                1.5,  # Left Palm
+                1.5,  # Right Palm
+                1.0,  # Back
+                1.0,  # Waist
+                2.0,  # Left Foot
+                2.0,  # Right Foot
+            ], dtype=torch.float32))
+        #
         self.use_target_weight = use_target_weight
+        self.joint_weighted_loss = use_joint_weighted_loss
+
         self.alpha_lo, self.alpha_hi = alpha_range
         self.beta_lo, self.beta_hi = beta_range
         self.gamma = gamma
@@ -60,39 +91,51 @@ class JointsMSELoss(nn.Module):
         gt = target.view(B, J, HW)
 
         # Use fixed (alpha_cur, beta_cur)
-        alpha = torch.tensor(self.alpha_cur, device=output.device)
-        beta = torch.tensor(self.beta_cur, device=output.device)
+        alpha = self.alpha_cur
+        beta = self.beta_cur
 
-        loss = 0.0
+        loss = output.new_tensor(0.0)
+        weight_sum = output.new_tensor(0.0)
+
         for idx in range(J):
-            pred_i = pred[:, idx, :]  # [B, HW]
-            gt_i = gt[:, idx, :]  # [B, HW]
-            per_pix = (pred_i - gt_i) ** 2  # [B, HW]
+            pred_i = pred[:, idx, :]
+            gt_i = gt[:, idx, :]
+            per_pix = (pred_i - gt_i) ** 2
 
-            # soft weight: peak ?, background ?
-            w_raw = beta + (alpha - beta) * (gt_i.clamp(0, 1) ** self.gamma)  # [B, HW]
+            w_raw = beta + (alpha - beta) * (gt_i.clamp(0, 1) ** self.gamma)
 
-            # Normalize to have mean 1 per batch (stabilize scale)
             if self.normalize_weights:
-                w = w_raw / (w_raw.mean(dim=1, keepdim=True).clamp_min(self.eps))
+                w = w_raw / (
+                    w_raw.mean(dim=1, keepdim=True).clamp_min(self.eps)
+                )
             else:
                 w = w_raw
 
             if self.use_target_weight:
-                if target_weight.dim() == 3:  # [B, J, 1]
+                if target_weight.dim() == 3:
                     tw = target_weight[:, idx, 0]
-                else:  # [B, J]
+                else:
                     tw = target_weight[:, idx]
-                tw = tw.view(B, 1)  # [B, 1]
+
+                tw = tw.view(B, 1)
 
                 num = (per_pix * w * tw).sum()
                 den = (w * tw).sum().clamp_min(self.eps)
                 loss_i = 0.5 * (num / den)
+
             else:
                 num = (per_pix * w).sum()
                 den = w.sum().clamp_min(self.eps)
                 loss_i = 0.5 * (num / den)
 
-            loss += loss_i
+            # Increase the contribution of difficult joints
+            # (knees, shoulders, elbows, ankles, etc.)
+            if self.joint_weighted_loss:
+                jw = self.joint_weights[idx]
+                loss += jw * loss_i
+                weight_sum += jw
+            else:
+                loss += loss_i
+                weight_sum += 1
 
-        return loss / J
+        return loss / weight_sum.clamp_min(self.eps)
