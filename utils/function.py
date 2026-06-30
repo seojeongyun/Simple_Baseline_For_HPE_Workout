@@ -400,72 +400,181 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
 
 
 
-def get_sequences(config, val_loader, model):
-    model.eval()
-    with torch.no_grad():
-        for i, (input, condition, image_file, video_idx, view_idx, max_frame) in enumerate(tqdm(val_loader, desc="RUNNING...", total=len(val_loader))):
-            exercise = condition['exercise'][0]
-            joints_val = []
-            img_paths = []
-            sequences_data_to_tf = {}
+def hard_exercise_finetune(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+          output_dir, tb_log_dir, writer_dict, acc_list, use_amp=False):
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    acc = AverageMeter()
+
+    end = time.time()
+    #
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    #
+    one_epoch_start_time = time.time()
+    for i, (data, json_file, workout_name, conditions) in enumerate(train_loader):
+        optimizer.zero_grad()
+        # switch to train mode
+        model.train()
+        # Generate Image Path from meta
+        label2image = path[0].replace('label', 'image').split('/')
+        base_path = os.path.join('/'.join(label2image[:7]), (label2image[8]))
+        for view_idx in view_keys:
+            a_video = {}
+            for frame_idx in range(len(data['frames'])):
+                a_frame_pts = {k: [] for k in config.DEMO.JOINTS_NAME}
+                img_path = base_path + '/' + data['frames'][frame_idx][view_idx]['img_key'][0]
+
+                # Debug
+                if img_path == '/storage/jysuh/fitness/fitness/validation/image/babel_01/Day07_200929_F/5/A/011-1-1-01-Z21_A/011-1-1-01-Z21_A-0000002.jpg':
+                    pass
+
+                # Load an Image
+                data_numpy = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                if data_numpy is None:
+                    print(f"Failed to read image: {img_path}")
+                    raise ValueError("Failed to read image")
+
+                # Image Crop and Resize
+                CROP = 1080
+                H, W = data_numpy.shape[:2]  # H=1080, W=1920
+                cx, cy = W / 2.0, H / 2.0  # (960, 540)
+
+                # Crop
+                x0, x1 = int(round(cx - CROP / 2)), int(round(cx + CROP / 2))
+                y0, y1 = int(round(cy - CROP / 2)), int(round(cy + CROP / 2))
+                cropped = data_numpy[y0:y1, x0:x1]
+
+                # Resize
+                out_w, out_h = config.MODEL.IMAGE_SIZE
+                data_numpy = cv2.resize(cropped, (out_w, out_h))
+
+                # BGR2RGB
+                data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
+
+                # Forward pass
+                data_tensor = to_tensor(data_numpy)  # [H,W,C] uint8 0~255 -> [C,H,W] float 0~1
+                input_data = normalize(data_tensor)  # Normalize
+                input_data = input_data.unsqueeze(0)  # [C,H,W] -> [1,C,H,W]
+                input_data = input_data.to(device)
+                output = model(input_data)
+
+                # Extract Joints Points
+                hm_flatten = output.detach().cpu(). \
+                    reshape(config.DEMO.BATCH_SIZE, config.MODEL.NUM_JOINTS, -1).argmax(axis=2)
+                y, x = torch.div(hm_flatten, POSE_RESNET.HEATMAP_SIZE[0], rounding_mode='floor'), \
+                    hm_flatten % POSE_RESNET.HEATMAP_SIZE[0]
+                coords = torch.stack([x, y], dim=-1)  # [B, J, 2]
+
+                # DEBUG: Visualization
+                if config.DEBUG.VISUALIZATION:
+                    import matplotlib.pyplot as plt
+                    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+                    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+                    #
+                    if isinstance(input_data, torch.Tensor):
+                        input_img = input_data.cpu().detach().numpy()
+                        for batch_idx in range(input_data.shape[0]):
+                            img = input_img[batch_idx].transpose(1, 2, 0)
+                            img = img * std + mean
+                            img = np.clip(img, 0, 1)
+                            #
+                            plt.figure()
+                            plt.imshow(img)
+                            for x, y in coords[batch_idx]:
+                                x, y = x.float() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0], y.float() / \
+                                       POSE_RESNET.HEATMAP_SIZE[1] * config.MODEL.IMAGE_SIZE[1]
+                                plt.scatter(x, y)
+                            plt.axis('off')
+                            plt.show()
+
+                # --- compute loss in FP32 for stable convergence ---
+                loss = criterion(output.float(), target, target_weight)
+
+                # --- backward + optimizer step ---
+                loss.backward()
+                optimizer.step()
+                # measure accuracy and record loss
+                losses.update(loss.item(), input.size(0))
+
+                _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(),
+                                                 target.detach().cpu().numpy(),
+                                                 thr=config.ACC_THR)
+                acc.update(avg_acc, cnt)
+
+                # measure elapsed time
+                batch_time.update(time.time() - end)
+                end = time.time()
+
+                if i % config.PRINT_FREQ == 0:
+                    msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                          'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                          'Speed {speed:.1f} samples/s\t' \
+                          'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                          'Loss {loss.val:.7f} ({loss.avg:.7f})\t' \
+                          'Accuracy {acc.val:.5f} ({acc.avg:.5f})'.format(
+                        epoch, i, len(train_loader), batch_time=batch_time,
+                        speed=input.size(0) / batch_time.val,
+                        data_time=data_time, loss=losses, acc=acc)
+                    logger.info(msg)
+                    #
+                    if not config.USE_DDP or (dist.is_initialized() and dist.get_rank() == 0):
+                        writer = writer_dict['writer']
+                        global_steps = writer_dict['train_global_steps']
+                        writer.add_scalar('train/loss_val', losses.val, global_steps)
+                        writer.add_scalar('train/acc_val', acc.val, global_steps)
+                        writer.add_scalar('train/loss_avg', losses.avg, global_steps)
+                        writer.add_scalar('train/acc_avg', acc.avg, global_steps)
+                        writer_dict['train_global_steps'] = global_steps + 1
+                        #
+                        # visualization exatracted joint coords on original image
+                        if isinstance(input, torch.Tensor):
+                            input_img = input.cpu().detach().numpy()
+                            img = input_img[0].transpose(1, 2, 0)
+                            # De-normalize: normalized -> [0, 1]
+                            img = img * std + mean
+                            img = np.clip(img, 0, 1)
+                            #
+                            for x, y in coords[0]:
+                                x = int(x.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
+                                y = int(y.item() / POSE_RESNET.HEATMAP_SIZE[0] * config.MODEL.IMAGE_SIZE[0])
+                                y1 = max(0, y - 5)
+                                y2 = min(img.shape[0], y + 5)
+                                x1 = max(0, x - 5)
+                                x2 = min(img.shape[1], x + 5)
+                                img[y1:y2, x1:x2] = np.array([1.0, 0.0, 0.0], dtype=np.uint8)
+                            img_chw = np.transpose(img, (2, 0, 1))  # HWC -> CHW
+                            write_tbimg(config, writer_dict['writer'], imgs=img_chw, step=i, type='vis_joint_coords')
+
+                        result, ori, hm = plot_train_batch(config, input, output)
+                        train_result = [result, ori, hm]
+                        write_tbimg(config, writer_dict['writer'], imgs=train_result, step=i, type='train')
+
+                        if acc.val < 0.9:
+                            result, ori, hm = plot_train_batch(config, input, output)
+                            train_result = [result, ori, hm]
+                            write_tbimg(config, writer_dict['writer'], imgs=train_result, step=i, type='lower_perf')
+
+                        prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
+                        save_debug_images(config, input, meta, target, pred * 4, output,
+                                          prefix)
+
+            # Training time measurement for one epoch
+            one_epoch_end_time = time.time()
+            train_one_epoch_time = one_epoch_end_time - one_epoch_start_time
+            print(f"[Epoch {epoch}] Train Time: {train_one_epoch_time:.2f} sec")
+
+            # Validation time measurement
+            valid_start_time = time.time()
+            acc_val, val_iter = validate(config=config, val_loader=valid_loader, model=model,
+                                         criterion=criterion, epoch=epoch, output_dir=output_dir, tb_log_dir=tb_log_dir,
+                                         val_iter='', writer_dict=writer_dict, is_training=True)
+            valid_end_time = time.time()
+            epoch_time = valid_end_time - valid_start_time
+            print(f"[Epoch {epoch}] Valid Time: {epoch_time:.2f} sec")
             #
-            input = input.cuda()
-            # compute output
-            output = model(input)
-            output = output.cpu().detach()
-            #
-            #
-            img_paths.append(image_file)
-            #
-            # ================================================================================================================================
-            all = torch.zeros([output.shape[0], output.shape[2], output.shape[3]])
-
-            for a_joint in range(output.shape[0]):
-                all += output[:, a_joint, :, :]
-                heatmap = output[:, a_joint, :, :]  # shape: (1, 256, 256)
-                idx = torch.argmax(heatmap)  #
-                joints_val.append(idx)
-                # y, x = torch.div(idx, heatmap.shape[1], rounding_mode='floor'), idx % heatmap.shape[1]
-                # max_coords.append((x.item(), y.item()))  # (x, y)
-
-            from copy import deepcopy
-
-            all = all.numpy()
-
-            temp = []
-            for i in range(output.shape[0]):
-                max = all[i].max()
-                all[i] /= max
-                all[i] *= 255
-                temp.append(np.expand_dims(deepcopy(all[i]).astype(np.uint8), axis=0))
-
-            # zeros = np.zeros(all.shape)
-            # all = np.concatenate((all,zeros,zeros), axis=1)
-            gamma = 0.3
-
-            for i in range(output.shape[0]):
-                temp[i] = cv2.applyColorMap(temp[i].transpose(1, 2, 0), cv2.COLORMAP_JET).transpose(2, 0, 1)
-                temp[i] = np.stack([temp[i][2, :, :], temp[i][1, :, :], temp[i][0, :, :]], axis=0)
-            # result = input + gamma * np.stack(temp, axis=0)
-
-            import matplotlib.pyplot as plt
-
-            # heatmap: torch.Tensor ??, shape (256, 256)
-
-            plt.imshow(temp[0].transpose(1, 2, 0))  # 'hot' ?? 'jet', 'viridis'? ??
-            plt.colorbar()  # ?? ? ?? (? ?? ???)
-            plt.title(f"Joint Heatmap: {a_joint}")
-            plt.axis('off')  # ? ??
-            plt.show()
-            # ================================================================================================================================
-
-            sequences_data_to_tf.setdefault(exercise, {})
-            sequences_data_to_tf[exercise].setdefault(video_idx[0], {})
-            sequences_data_to_tf[exercise][video_idx[0]].setdefault(view_idx[0], [])
-            sequences_data_to_tf[exercise][video_idx[0]][view_idx[0]].append(joints_val)
-            sequences_data_to_tf[exercise][video_idx[0]]['condition'] = condition
-        sequences_data_to_tf['max_frame'] = max_frame
-    return sequences_data_to_tf,
+            return acc_val
 
 
 def plot_train_batch(config, input, output, gamma=0.5, max_subplots=16):

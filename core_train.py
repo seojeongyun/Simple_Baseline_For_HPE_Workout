@@ -30,7 +30,7 @@ from config.config import config
 from models.loss import JointsMSELoss
 from utils.function import train
 from utils.function import validate
-from utils.function import get_sequences
+from utils.function import hard_exercise_finetune
 from utils.utils import get_optimizer
 
 from utils.utils import create_logger
@@ -158,17 +158,9 @@ def main(rank):
         # --- Single GPU ---
         model = model.to(device)
 
-    #
-    # To make calculation graph in the tensorboard, dump_input is forwarding.
-    # dump_input = torch.rand((config.TRAIN.BATCH_SIZE,
-    #                          3,
-    #                          config.MODEL.IMAGE_SIZE[1],
-    #                          config.MODEL.IMAGE_SIZE[0]))
-    # writer_dict['writer'].add_graph(model.cpu(), (dump_input, ), verbose=False)
-
-
     # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(use_target_weight=config.LOSS.USE_TARGET_WEIGHT)
+    criterion = JointsMSELoss(use_target_weight=config.LOSS.USE_TARGET_WEIGHT,
+                              use_joint_weighted_loss=config.LOSS.JOINT_WEIGHTED_LOSS)
     criterion = criterion.to(local_gpu_id) if config.USE_DDP else criterion.to(device)
 
     optimizer = get_optimizer(config, model)
@@ -177,24 +169,15 @@ def main(rank):
         optimizer, config.TRAIN.LR_STEP, config.TRAIN.LR_FACTOR
     )
 
-    # Data loading code
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
+    # Data loading code
+    if config.TASK == 'hard_exercise_finetune':
+        from dataset.JointsDataset_hard_exercise_finetune import JointsDataset
 
-    from dataset.JointsDataset import JointsDataset
+        train_dataset = JointsDataset(cfg=config,
+                                      root='/storage/jysuh/Simple_Baseline_For_HPE_Workout/demo/valid_json_files_path.json')
 
-    train_dataset = JointsDataset(cfg=config,
-                         root=config.DATASET.ROOT,
-                         task=config.TASK,
-                         transform=transforms.Compose([transforms.ToTensor(), normalize]))
-    if config.USE_DDP:
-        train_sampler = DistributedSampler(dataset=train_dataset, shuffle=True)
-        batch_sampler_train = torch.utils.data.BatchSampler(train_sampler, config.TRAIN.BATCH_SIZE, drop_last=True)
-        train_loader = DataLoader(train_dataset,
-                                  batch_sampler=batch_sampler_train,
-                                  num_workers=config.DDP_OPTS.NUM_WORKERS,
-                                  pin_memory=True)
-    else:
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=config.TRAIN.BATCH_SIZE,
@@ -204,6 +187,32 @@ def main(rank):
             persistent_workers=True,
             prefetch_factor=4,
         )
+
+    # In this case, config.TASK == Train
+    else:
+        from dataset.JointsDataset import JointsDataset
+
+        train_dataset = JointsDataset(cfg=config,
+                             root=config.DATASET.ROOT,
+                             task=config.TASK,
+                             transform=transforms.Compose([transforms.ToTensor(), normalize]))
+        if config.USE_DDP:
+            train_sampler = DistributedSampler(dataset=train_dataset, shuffle=True)
+            batch_sampler_train = torch.utils.data.BatchSampler(train_sampler, config.TRAIN.BATCH_SIZE, drop_last=True)
+            train_loader = DataLoader(train_dataset,
+                                      batch_sampler=batch_sampler_train,
+                                      num_workers=config.DDP_OPTS.NUM_WORKERS,
+                                      pin_memory=True)
+        else:
+            train_loader = torch.utils.data.DataLoader(
+                train_dataset,
+                batch_size=config.TRAIN.BATCH_SIZE,
+                shuffle=config.TRAIN.SHUFFLE,
+                num_workers=config.WORKERS,
+                pin_memory=True,
+                persistent_workers=True,
+                prefetch_factor=4,
+            )
 
     valid_dataset = JointsDataset(cfg=config,
                          root=config.DATASET.ROOT_VALID_LABEL,
@@ -249,14 +258,14 @@ def main(rank):
                 if not config.MODEL.PRETRAINED:
                     torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight] from_scratch_512_128.pth.tar'))
                 if config.MODEL.PRETRAINED:
-                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight, New_Data] finetune_512_128.pth.tar'))
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight, New_Data, joint weighted loss] finetune_512_128.pth.tar'))
 
                 logger.info('=> saving checkpoint to {}'.format(final_output_dir))
 
             lr_scheduler.step()
         #
         final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
-                                              '[New_Data, no_finetune] final_state.pth.tar')
+                                              '[New_Data, finetune, joint weighted loss] final_state.pth.tar')
 
         logger.info('saving final model state to {}'.format(
             final_model_state_file))
@@ -279,10 +288,50 @@ def main(rank):
                      criterion=criterion, epoch=epoch, output_dir=final_output_dir, tb_log_dir=tb_log_dir,
                      writer_dict=writer_dict, is_training=False)
 
-    elif config.TASK == 'get_sequences_for_tf':
-        sequences_data_to_tf = get_sequences(config, valid_loader, model)
-        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/sequences_data_to_tf.json','w') as f:
-            json.dump(sequences_data_to_tf, f)
+    elif config.TASK == 'hard_exercise_finetune':
+        for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
+            #
+            acc_list = []
+            #
+            criterion.on_new_epoch(device=config.DDP_OPTS.GPU if config.USE_DDP else device)
+
+            # train for one epoch
+            val_acc = hard_exercise_finetune(config, train_loader, valid_loader, model, criterion, optimizer, epoch,
+                                 final_output_dir, tb_log_dir, writer_dict, acc_list, use_amp=config.USE_AMP)
+
+            if val_acc.avg > best_perf:
+                best_perf = val_acc.avg
+                best_model = True
+            else:
+                best_model = False
+
+            if best_model:
+                if not config.MODEL.PRETRAINED:
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight] from_scratch_512_128.pth.tar'))
+                if config.MODEL.PRETRAINED:
+                    torch.save(model.state_dict(),os.path.join(final_output_dir, '[Weight, New_Data, joint weighted loss] finetune_512_128.pth.tar'))
+
+                logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+
+            lr_scheduler.step()
+        #
+        final_model_state_file = os.path.join('/storage/jysuh/fitness_weights/',
+                                              '[New_Data, finetune, joint weighted loss] final_state.pth.tar')
+
+        logger.info('saving final model state to {}'.format(
+            final_model_state_file))
+
+        is_main_process = (not config.USE_DDP) or (dist.is_initialized() and dist.get_rank() == 0)
+
+        if is_main_process:
+            if hasattr(model, "module"):
+                state_dict = model.module.state_dict()
+            else:
+                state_dict = model.state_dict()
+
+            torch.save(state_dict, final_model_state_file)
+
+        writer_dict['writer'].close()
 
     else:
         raise ValueError("{} is wrong task.".format(config.TASK))

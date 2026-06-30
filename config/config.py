@@ -18,8 +18,8 @@ config.LOG_DIR = ''
 config.DATA_DIR = ''
 #
 config.GPUS ='0'          # '0,1'
-config.WORKERS = 0
-config.TASK = 'train' # ['train', 'validation', 'get_sequences_for_tf']
+config.WORKERS = 4
+config.TASK = 'hard_exercise_finetune' # ['train', 'validation', 'hard_exercise_finetune']
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
 config.PRINT_FREQ = 2000                                                          ##### PRINT_FREQ
@@ -62,7 +62,9 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/[Weight, New_Data] finetune_512_128.pth.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+
+# '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/[Weight, New_Data] finetune_512_128.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
@@ -77,6 +79,8 @@ config.MODEL.STYLE = 'pytorch'
 
 config.LOSS = edict()
 config.LOSS.USE_TARGET_WEIGHT = True
+#
+config.LOSS.JOINT_WEIGHTED_LOSS = True
 
 # DATASET related params
 config.DATASET = edict()
