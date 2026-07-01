@@ -93,36 +93,16 @@ class JointsDataset(Dataset):
 
             return img_path_list, db
 
-        elif self.task == 'get_sequences_for_tf':
-            with open(self.cfg.DATASET.GET_SEQUENCES_SET_PATH, 'r', encoding="utf-8") as f:
+        elif self.task == 'hard_exercise_finetune':
+            with open(self.cfg.DATASET.HARD_EX_FINETUNE_PATH, 'r', encoding="utf-8") as f:
                 db = json.load(f)
-                # exercise_dict['오버 헤드 프레스']['4']['view1']['img_path']
-                # exercise_dict['what_exer']['seq_num']['view_num / type_info']['img_path']
-            max_frame = db['max_frame']
+
+                # the number of img path in db: 2696768
             img_path_list = []
-            workout_condition_list = []
-            video_idx_list = []
-            view_idx_list = []
-            #
-            for what_exer in tqdm(db.keys(), desc="get sequence data", leave=True):
-                if what_exer != 'max_frame':
-                    for video_idx in db[what_exer].keys():
-                        for view_idx in db[what_exer][video_idx].keys():
-                            if 'view' in view_idx:
-                                for img_path in db[what_exer][video_idx][view_idx]['img_path']:
-                                    img_path_list.append(img_path)
-                                    workout_condition_list.append(db[what_exer][video_idx]['type_info'])
-                                    video_idx_list.append(video_idx)
-                                    view_idx_list.append(view_idx)
+            for _, key in enumerate(tqdm(db.keys(), desc="get train data from train_img_paths.json", leave=True)):
+                img_path_list.append(key)
 
-            return img_path_list, workout_condition_list, video_idx_list, view_idx_list, db, max_frame
-
-            # delete exer type lower than threshold
-            # threshold = 500
-            # for what_exer, _ in db.items():
-            #     if(len(db[what_exer]['view1'].keys()) < threshold):
-            #         del db[what_exer]
-            #     print("{} : {}".format(what_exer, len(db[what_exer]['view1'].keys()))
+            return img_path_list, db
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError

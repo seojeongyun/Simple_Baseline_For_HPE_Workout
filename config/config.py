@@ -9,7 +9,25 @@ import torch
 import numpy as np
 from easydict import EasyDict as edict
 
-
+'''
+    Check Point
+    - config.GPUS 
+    - config.TASK
+    - config.MODEL.INIT_WEIGHTS
+    - config.MODEL.PRETRAINED
+    - config.DATASET.TRAIN_SET_PATH = './json_files/real_HPE_train_data.json'
+    - config.DATASET.VALID_SET_PATH = './json_files/real_HPE_valid_data.json'
+    - config.DATASET.HARD_EX_FINETUNE_PATH =
+    - config.LOSS.USE_TARGET_WEIGHT = True
+    - config.LOSS.JOINT_WEIGHTED_LOSS = True
+    - config.DATASET.FLIP 
+    - config.DATASET.SCALE
+    - config.DATASET.ROTATE
+    - config.TRAIN.RESUME
+    - config.TRAIN.BATCH_SIZE
+    - config.TEST.BATCH_SIZE
+    - config.DEBUG.VISUALIZATION
+'''
 config = edict()
 
 config.CONFIG_FILE_PATH = './configs/workout.yaml'
@@ -17,9 +35,10 @@ config.OUTPUT_DIR = './result'
 config.LOG_DIR = ''
 config.DATA_DIR = ''
 #
-config.GPUS ='0'          # '0,1'
+config.GPUS ='1'          # '0,1'
 config.WORKERS = 4
 config.TASK = 'hard_exercise_finetune' # ['train', 'validation', 'hard_exercise_finetune']
+
 # validation -> turn off data augmentation (rotate, scale, flip)
 #
 config.PRINT_FREQ = 2000                                                          ##### PRINT_FREQ
@@ -62,7 +81,7 @@ MODEL_EXTRAS = {
 config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = False   # True / False
-config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_weight/coco_67epoch.tar'
+config.MODEL.PRETRAINED = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/[Weight, New_Data] finetune_512_128.pth.tar'
 
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/[Weight, New_Data] finetune_512_128.pth.tar'
 # '/storage/jysuh/Simple_Baseline_For_HPE_Workout/result/workout/pose_resnet_50/workout/finetune.pth_input_size_512_512.tar'
@@ -80,7 +99,7 @@ config.MODEL.STYLE = 'pytorch'
 config.LOSS = edict()
 config.LOSS.USE_TARGET_WEIGHT = True
 #
-config.LOSS.JOINT_WEIGHTED_LOSS = True
+config.LOSS.JOINT_WEIGHTED_LOSS = False
 
 # DATASET related params
 config.DATASET = edict()
@@ -94,7 +113,7 @@ config.DATASET.DATASET = 'workout'
 config.DATASET.TRAIN_SET_PATH= './json_files/real_HPE_train_data.json'
 # config.DATASET.TRAIN_SET_PATH= './json_files/valid_img_paths.json' # To debug
 config.DATASET.VALID_SET_PATH= './json_files/real_HPE_valid_data.json'
-config.DATASET.GET_SEQUENCES_SET_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/frame_sequences_w_type_info.json'
+config.DATASET.HARD_EX_FINETUNE_PATH = '/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/hard_exercise_img_path.json'
 # config.DATASET.TRAIN_SET = 'valid2017'
 config.DATASET.DATA_FORMAT = 'jpg'
 config.DATASET.HYBRID_JOINTS_TYPE = ''
@@ -150,6 +169,7 @@ config.TRAIN.USE_AMP = False
 config.TEST = edict()
 
 # size of images for each device
+
 config.TEST.BATCH_SIZE = 32 if config.TASK != 'get_sequences_for_tf' else 1
 
 # test type
