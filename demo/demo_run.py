@@ -33,9 +33,8 @@ from demo.demo_config import config, POSE_RESNET
 from models.loss import JointsMSELoss
 from utils.function import train
 from utils.function import validate
-from utils.function import get_sequences
 from utils.utils import get_optimizer
-
+from tqdm import tqdm
 from utils.utils import create_logger
 from easydict import EasyDict as edict
 
@@ -171,7 +170,8 @@ def main(rank):
     except_path = []
     with torch.no_grad():
         videos = []
-        for step, (data, path, workout_name, conditions) in enumerate(dataloader):
+        for step, (data, path, workout_name, conditions) in enumerate(
+                tqdm(dataloader, desc="Inference", total=len(dataloader))):
             # for frame_idx in range(len(data['frames'])):
             #     for view_idx in data['frames'][frame_idx].keys():
             #         if EXPECTED_JOINT_ORDER != list(data['frames'][frame_idx][view_idx]['pts'].keys()):
@@ -351,7 +351,9 @@ def main(rank):
                 if list(a_video.keys()) == expected_keys:
                     videos.append([a_video, workout_idx, conditions_lst])
 
-                print()
+        # Save
+        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/BERT_Demo.json', 'w', encoding='utf-8') as f:
+            json.dump(videos, f, ensure_ascii=False, indent=4)
 
 
                 #

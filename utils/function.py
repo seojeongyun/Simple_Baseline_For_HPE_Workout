@@ -264,8 +264,8 @@ def validate(config, val_loader, model, criterion, epoch, output_dir,
                 batch_time.update(time.time() - end)
                 end = time.time()
 
-                # if i % config.PRINT_FREQ == 0:
-                if (i + 1) % max_val_images == 0:
+                if i % config.PRINT_FREQ == 0:
+                # if (i + 1) % max_val_images == 0:
                     msg = 'Epoch: [{0}][{1}/{2}]\t' \
                           'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
                           'Speed {speed:.1f} samples/s\t' \

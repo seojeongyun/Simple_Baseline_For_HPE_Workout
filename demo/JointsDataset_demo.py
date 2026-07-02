@@ -59,7 +59,6 @@ class JointsDataset(Dataset):
         self.heatmap_size = cfg.MODEL.EXTRA.HEATMAP_SIZE
         #
         # self.sigma = cfg.MODEL.EXTRA.SIGMA
-        self.transform = transform
         self.debugging = True
 
         self.json_files = self.get_db()
