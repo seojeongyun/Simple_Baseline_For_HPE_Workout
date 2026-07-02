@@ -352,8 +352,10 @@ def main(rank):
                     videos.append([a_video, workout_idx, conditions_lst])
 
         # Save
-        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/BERT_Demo.json', 'w', encoding='utf-8') as f:
-            json.dump(videos, f, ensure_ascii=False, indent=4)
+        import pickle
+
+        with open('/storage/jysuh/Simple_Baseline_For_HPE_Workout/json_files/BERT_Demo.pkl','wb') as f:
+            pickle.dump(videos, f)
 
 
                 #
