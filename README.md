@@ -13,7 +13,7 @@ Simple Baselines for Human Pose Estimation의 **PoseResNet** 구조를 기반으
 ## Architecture
 
 <p align="center">
-  <img src="./assets/img/hpe_architecture.png" width="100%">
+  <img src="./assets/hpe_architecture.png" width="100%">
 </p>
 
 전체 모델은 **ResNet-50 Backbone + 3개의 Deconvolution Layer + Heatmap Prediction Head**로 구성됩니다.
@@ -45,7 +45,7 @@ Deconv 3 : 256 channels / kernel 4
 ## Demo
 
 <p align="center">
-  <img src="./assets/img/hpe_demo.gif" width="45%">
+  <img src="./assets/hpe_demo.gif" width="45%">
 </p>
 
 <p align="center">
