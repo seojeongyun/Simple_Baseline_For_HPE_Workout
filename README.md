@@ -42,6 +42,20 @@ Deconv 3 : 256 channels / kernel 4
 
 ---
 
+## Demo
+
+<p align="center">
+  <img src="./assets/img/hpe_demo.gif" width="45%">
+</p>
+
+<p align="center">
+  <b>24-Joint Human Pose Estimation on Workout Video</b>
+</p>
+
+운동 수행 영상에서 프레임별로 **24개 관절의 위치를 추정**하고, 예측된 관절 좌표를 Skeleton 형태로 시각화한 결과입니다.
+
+---
+
 ## 24-Joint Pose Representation
 
 운동 자세를 보다 세밀하게 표현하기 위해 **24개의 Joint Representation**을 사용합니다.
